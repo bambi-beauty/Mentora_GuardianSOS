@@ -27,6 +27,7 @@
     "multer": "^2.0.2",
     "node-cache": "^5.1.2",
     "node-cron": "^4.2.1",
+    "node-fetch": "^3.3.2",
     "path": "^0.12.7",
     "resend": "^6.1.0",
     "socket.io": "^4.8.1"
