@@ -3,7 +3,7 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Linking, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-export default function ContactUsScreen() {
+export default function ContactUsScreen({ navigation }) {
   const handleEmail = () => {
     Linking.openURL("mailto:support@guardiansos.com");
   };
@@ -14,39 +14,55 @@ export default function ContactUsScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.header}>Contact Us</Text>
-      <Text style={styles.subText}>
-        Reach out to the Guardian SOS support team. We're here to help!
-      </Text>
-
-      <View style={styles.section}>
-        <TouchableOpacity style={styles.item} onPress={handleEmail}>
-          <Ionicons name="mail-outline" size={22} color="#2171B5" style={styles.icon} />
-          <Text style={styles.itemText}>Email: support@guardiansos.com</Text>
+      <View style={styles.headerContainer}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back-outline" size={26} color="#fff" />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Contact Us</Text>
+      </View>
 
-        <TouchableOpacity style={styles.item} onPress={handlePhone}>
-          <Ionicons name="call-outline" size={22} color="#2171B5" style={styles.icon} />
-          <Text style={styles.itemText}>Phone: +27 11 123 4567</Text>
-        </TouchableOpacity>
+      <View style={styles.body}>
+        <Text style={styles.subText}>
+          Reach out to the Guardian SOS support team. We're here to help!
+        </Text>
+
+        <View style={styles.section}>
+          <TouchableOpacity style={styles.item} onPress={handleEmail}>
+            <Ionicons name="mail-outline" size={22} color="#2A5B8C" style={styles.icon} />
+            <Text style={styles.itemText}>Email: support@guardiansos.com</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.item} onPress={handlePhone}>
+            <Ionicons name="call-outline" size={22} color="#2A5B8C" style={styles.icon} />
+            <Text style={styles.itemText}>Phone: +27 11 123 4567</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#EFF3FF",
-    padding: 20,
-    marginTop:30
+  container: { flex: 1, backgroundColor: "#f5f8fc" },
+
+  headerContainer: {
+    backgroundColor: "#2A5B8C",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 25,
+    paddingHorizontal: 15,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
   },
-  header: {
-    fontSize: 22,
+  backButton: { paddingRight: 10 },
+  headerTitle: {
+    fontSize: 20,
     fontWeight: "bold",
-    color: "#2171B5",
-    marginBottom: 8,
+    color: "#fff",
+    marginLeft: 10,
   },
+
+  body: { padding: 20 },
   subText: {
     fontSize: 14,
     color: "#555",
@@ -72,7 +88,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333",
   },
-  icon: {
-    marginRight: 12,
-  },
+  icon: { marginRight: 12 },
 });

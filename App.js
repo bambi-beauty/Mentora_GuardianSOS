@@ -9,6 +9,9 @@ import Add_Image from "./Screen/Add_Image";
 import EmergencyContacts from "./Screen/Adding_Emergency_Contacts";
 import ContactUsScreen from "./Screen/ContactUsScreen";
 import EditProfileScreen from "./Screen/EditProfileScreen";
+import  EditNameScreen from "./Screen/EditNameScreen";
+import  EditContactScreen from "./Screen/EditContactScreen";
+import  EditEmailScreen from "./Screen/EditEmailScreen";
 import ProfileDetailsScreen from "./Screen/ProfileDetailsScreen";
 import SafetyScreen from "./Screen/SafetyScreen";
 import HelpCenterScreen from "./Screen/HelpCenterScreen";
@@ -24,6 +27,7 @@ import { UserProvider } from "./Users/useContext";
 import { ChatProvider } from "./ChatContext/ChatContext";
 import { PostProvider } from './postContext/postContext';
 import { GroupsProvider } from "./groupContext/groupContext";
+
 
 const Stack = createNativeStackNavigator();
 
@@ -49,12 +53,17 @@ export default function App() {
                 <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} />
                 <Stack.Screen name="ProfileDetailsScreen" component={ProfileDetailsScreen} />
                 <Stack.Screen name="NotificationScreen" component={NotificationsScreen} />
+                <Stack.Screen name="EditNameScreen" component={EditNameScreen}/>
+                <Stack.Screen name="EditContactScreen" component={EditContactScreen}/>
+                 <Stack.Screen name="EditEmailScreen" component={EditEmailScreen}/>
                 <Stack.Screen name="LocationSelectorSimple" component={LocationSelectorSimple} />
                 <Stack.Screen name="HelpCenterScreen" component={HelpCenterScreen} />
                 <Stack.Screen name="Forgot_Password" component={ForgotPasswordScreen} />
                 <Stack.Screen name="DeleteAccount" component={DeleteAccount} />
                 <Stack.Screen name="splash" component={SplashScreenComponent} />
                 <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+
+                
               </Stack.Navigator>
             </NavigationContainer>
           </GroupsProvider>

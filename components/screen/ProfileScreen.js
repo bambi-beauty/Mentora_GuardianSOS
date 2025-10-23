@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   ScrollView,
   Alert,
@@ -16,14 +15,16 @@ const backendBaseUrl = "http://192.168.57.209:3000";
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useUser();
 
+  const handleProfileDetails = () => navigation.navigate("ProfileDetailsScreen");
   const handleNotifications = () => navigation.navigate("NotificationScreen");
   const handlePrivacy = () => navigation.navigate("Privacy");
   const handleSecurity = () => navigation.navigate("Safety");
+  const handleSafety = () => navigation.navigate("SafetyScreen");
   const handleHelpCenter = () => navigation.navigate("HelpCenterScreen");
   const handleContact = () => navigation.navigate("ContactUsScreen");
   const handleTerms = () => navigation.navigate("TermsOfService");
   const handlePolicy = () => navigation.navigate("PrivacyPolicy");
-  const handleDeleteAcc =()=> navigation.navigate("DeleteAcc")
+  const handleDeleteAcc = () => navigation.navigate("DeleteAcc");
 
   const handleLogout = () => {
     Alert.alert(
@@ -44,116 +45,67 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
-  
-  const avatarUri = user?.imageUrl
-    ? user.imageUrl.startsWith("http")
-      ? user.imageUrl
-      : `${backendBaseUrl}${user.imageUrl}`
-    : null;
-
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.profileContainer}>
-        {/* <Image
-          source={
-            avatarUri
-              ? { uri: avatarUri }
-              : require("../assets/avatar-placeholder.png")
-          }
-          style={styles.avatar}
-        /> */}
+      {/* Header */}
+      <View style={styles.headerContainer}>
+        <View style={styles.emptyCircle}>
+          <Ionicons name="person-outline" size={40} color="#fff" />
+        </View>
         <Text style={styles.name}>{user?.name || "User"}</Text>
-
-        <TouchableOpacity
-          onPress={() => navigation.navigate("ProfileDetailsScreen")}
-        >
-          <Text style={styles.viewProfile}>View Profile</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Account Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account</Text>
 
+        <TouchableOpacity style={styles.item} onPress={handleProfileDetails}>
+          <Ionicons name="person-outline" size={20} color="#2A5B8C" style={styles.icon} />
+          <Text style={styles.itemText}>Personal Info</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.item} onPress={handleNotifications}>
-          <Ionicons
-            name="notifications-outline"
-            size={20}
-            color="#2171B5"
-            style={styles.icon}
-          />
+          <Ionicons name="notifications-outline" size={20} color="#2A5B8C" style={styles.icon} />
           <Text style={styles.itemText}>Notifications</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.item} onPress={handlePrivacy}>
-          <Ionicons
-            name="lock-closed-outline"
-            size={20}
-            color="#2171B5"
-            style={styles.icon}
-          />
-          <Text style={styles.itemText}>Privacy</Text>
-        </TouchableOpacity>
 
-        <TouchableOpacity style={styles.item} onPress={handleSecurity}>
-          <Ionicons
-            name="shield-checkmark-outline"
-            size={20}
-            color="#2171B5"
-            style={styles.icon}
-          />
+        <TouchableOpacity style={styles.item} onPress={handleSafety}>
+          <Ionicons name="shield-checkmark-outline" size={20} color="#2A5B8C" style={styles.icon} />
           <Text style={styles.itemText}>Safety</Text>
         </TouchableOpacity>
 
-         <TouchableOpacity style={styles.item} onPress={handleDeleteAcc}>
-          <Ionicons
-            name="double-cross"
-            size={20}
-            color="#2171B5"
-            style={styles.icon}
-          />
-          <Text style={styles.itemText}>Delete Account</Text>
+        <TouchableOpacity style={styles.item} onPress={handlePrivacy}>
+          <Ionicons name="lock-closed-outline" size={20} color="#2A5B8C" style={styles.icon} />
+          <Text style={styles.itemText}>Privacy</Text>
         </TouchableOpacity>
 
 
-
+        <TouchableOpacity style={styles.item} onPress={handleDeleteAcc}>
+          <Ionicons name="close-circle-outline" size={20} color="#2A5B8C" style={styles.icon} />
+          <Text style={styles.itemText}>Delete Account</Text>
+        </TouchableOpacity>
       </View>
-      
 
       {/* Support Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Support</Text>
 
         <TouchableOpacity style={styles.item} onPress={handleHelpCenter}>
-          <Ionicons
-            name="help-circle-outline"
-            size={20}
-            color="#2171B5"
-            style={styles.icon}
-          />
+          <Ionicons name="help-circle-outline" size={20} color="#2A5B8C" style={styles.icon} />
           <Text style={styles.itemText}>Help Center</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.item} onPress={handleContact}>
-          <Ionicons
-            name="mail-outline"
-            size={20}
-            color="#2171B5"
-            style={styles.icon}
-          />
+          <Ionicons name="mail-outline" size={20} color="#2A5B8C" style={styles.icon} />
           <Text style={styles.itemText}>Contact Us</Text>
         </TouchableOpacity>
       </View>
 
-      
+      {/* Logout */}
       <View style={[styles.section, { marginBottom: 30 }]}>
         <TouchableOpacity style={styles.item} onPress={handleLogout}>
-          <Ionicons
-            name="log-out-outline"
-            size={20}
-            color="red"
-            style={styles.icon}
-          />
+          <Ionicons name="log-out-outline" size={20} color="red" style={styles.icon} />
           <Text style={[styles.itemText, { color: "red", fontWeight: "bold" }]}>
             Log Out
           </Text>
@@ -162,33 +114,33 @@ export default function ProfileScreen({ navigation }) {
     </ScrollView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#EFF3FF",
   },
-  profileContainer: {
+  headerContainer: {
     alignItems: "center",
-    paddingVertical: 30,
-    backgroundColor: "#2171B5",
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    backgroundColor: "#2A5B8C",
+    paddingVertical: 40,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
   },
-  avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+  emptyCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 10,
   },
   name: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "600",
     color: "#fff",
-  },
-  viewProfile: {
-    fontSize: 14,
-    color: "#BDD7E7",
-    marginTop: 5,
   },
   section: {
     marginTop: 25,
@@ -203,7 +155,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#2171B5",
+    color: "#2A5B8C",
     marginBottom: 10,
   },
   item: {

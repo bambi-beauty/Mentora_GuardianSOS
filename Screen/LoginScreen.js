@@ -14,14 +14,14 @@ import {
 import { useUser } from "../Users/useContext";
 import Icon from "react-native-vector-icons/FontAwesome";
 
- export default function LoginScreen({ navigation }) {
+export default function LoginScreen({ navigation }) {
   const { login, user, token, loading } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
 
-  const GoToSignUp=()=>{
+  const GoToSignUp = () => {
     navigation.navigate("Signup")
   }
   useEffect(() => {
@@ -43,6 +43,8 @@ import Icon from "react-native-vector-icons/FontAwesome";
   const handleLogin = async () => {
     if (loggingIn) return;
     setLoggingIn(true);
+    navigation.reset({ index: 0, routes: [{ name: "MainApp" }] });
+    return;
     try {
       const loggedInUser = await login(email, password, rememberMe);
       if (!loggedInUser) {
@@ -50,16 +52,17 @@ import Icon from "react-native-vector-icons/FontAwesome";
       }
       setEmail("");
       setPassword("");
-      
+
     } catch (error) {
       Alert.alert("Login Failed", error.message || "Invalid email or password");
     } finally {
       setLoggingIn(false);
     }
+
   };
   const toggleRememberMe = () => setRememberMe(prev => !prev);
 
-  const handleForgotPassword=()=>{
+  const handleForgotPassword = () => {
     navigation.navigate('Forgot_Password')
   }
   return (
@@ -175,7 +178,7 @@ import Icon from "react-native-vector-icons/FontAwesome";
 const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
-    backgroundColor: "#F9FAFB", 
+    backgroundColor: "#F9FAFB",
   },
 
 
