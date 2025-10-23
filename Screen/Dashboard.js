@@ -20,6 +20,7 @@
 // import * as Notifications from 'expo-notifications';
 // import { useUser } from '../Users/useContext';
 
+
 // const GuardianSOSApp = ({ navigation }) => {
 //   const [chatbotVisible, setChatbotVisible] = useState(false);
 //   const [currentTime, setCurrentTime] = useState('');
@@ -160,9 +161,7 @@
 //       setChatbotVisible(true);
 //     } else if (action === 'Call Help') {
 //       handleCallHelp();
-//     } else {
-//       Alert.alert(`${action}`, `${action} functionality would be implemented here.`);
-//     }
+//     } 
 //   };
 
 //   const sendMessage = async () => {
@@ -319,13 +318,17 @@
 //               <Icon name="phone" size={24} color="#2A5B8C" />
 //               <Text style={styles.actionBtnText}>Call Help</Text>
 //             </TouchableOpacity>
+
+//             {/*share location button*/}
 //             <TouchableOpacity 
 //               style={styles.actionBtn}
-//               onPress={() => handleActionPress('Share Location')}
+//               onPress={() => setShareLocationVisible(true)}
 //             >
 //               <Icon name="location-arrow" size={24} color="#2A5B8C" />
 //               <Text style={styles.actionBtnText}>Share Location</Text>
 //             </TouchableOpacity>
+            
+
 //             <TouchableOpacity 
 //               style={styles.actionBtn}
 //               onPress={() => handleActionPress('AI Assistant')}
@@ -847,7 +850,7 @@
 // export default GuardianSOSApp;
 
 
-//send Message to the AI
+// {/*send Message to the AI*/}
 //   const sendMessage = () => {
 //     if (message.trim() === '') return;
     

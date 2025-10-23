@@ -19,6 +19,9 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import * as Location from 'expo-location';
 import { useUser } from '../../Users/useContext';
 import { useChat } from '../../ChatContext/ChatContext';
+import * as Sharing from 'expo-sharing';
+import ShareLocation from './shareLocation';
+
 
 // Helper function to generate unique IDs
 const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 5);
@@ -160,7 +163,7 @@ export default function HomeScreen() {
   // Chat Handlers
   const handleActionPress = (action) => {
     if (action === 'AI Assistant') setChatbotVisible(true);
-    else Alert.alert(action, `${action} functionality will be implemented.`);
+    
   };
 
   const handleSend = async () => {
@@ -357,10 +360,10 @@ export default function HomeScreen() {
               <Icon name="phone" size={24} color="#2A5B8C" />
               <Text style={styles.actionBtnText}>Call Help</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
+            {/* Share Location Button */}
+            <TouchableOpacity 
               style={styles.actionBtn}
-              onPress={() => handleActionPress('Share Location')}
+              onPress={() => setShareLocationVisible(true)}
             >
               <Icon name="location-arrow" size={24} color="#2A5B8C" />
               <Text style={styles.actionBtnText}>Share Location</Text>
