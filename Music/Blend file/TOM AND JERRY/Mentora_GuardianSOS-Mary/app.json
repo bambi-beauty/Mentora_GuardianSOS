@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "app2",
+    "slug": "app2",
+    "scheme": "app2",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyArR8lggtsFGEz6FOyMxPB3YzshMb-3q10"
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app uses your location to show your position on the map."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyArR8lggtsFGEz6FOyMxPB3YzshMb-3q10"
+        }
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "package": "com.mahlori_baloyi07.app2"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-web-browser",
+      "expo-location"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0337eb36-100e-497b-ac1e-0c07cdd3ef0b"
+      }
+    }
+  }
+}
