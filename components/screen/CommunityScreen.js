@@ -20,8 +20,6 @@ import IncidentModal from './IncidentModel';
 import NeighborhoodWatchScreen from './NeighborhoodWatch';
 import { useUser } from '../../Users/useContext';
 import { usePosts } from '../../postContext/postContext';
-
-// ✅ NEW IMPORT
 import NewsScreen from './NewsScreen';
 
 const CommunityScreen = () => {

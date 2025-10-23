@@ -8,7 +8,7 @@ export const GroupsProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const API_URL = 'http//192.168.137.1'; 
+  const API_URL = 'http//192.168.50.236'; 
 
   // Fetch all groups (Read)
   const fetchGroups = async () => {

@@ -7,7 +7,7 @@ const PostContext = createContext();
 
 export const PostProvider = ({ children }) => {
   const { token } = useUser();
-  const backendBaseUrl = 'https://thisprojectbackend1-1.onrender.com'; // make sure this is reachable
+  const backendBaseUrl = 'http://192.168.50.236'; //192.168.50.236 //https://thisprojectbackend1-1.onrender.com
   const [posts, setPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [socket, setSocket] = useState(null);

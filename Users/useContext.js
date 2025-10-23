@@ -31,7 +31,7 @@ export const UserProvider = ({ children }) => {
 
   // 🛠️ Backend
   const API_BASE_URL = 'https://getlocations.onrender.com';
-  const backendBaseUrl = 'http://192.168.137.1:3000'; // ✅ fixed
+  const backendBaseUrl = 'http://192.168.50.236:3000'; 
 
   const isValidToken = (t) => {
     try {
@@ -102,38 +102,63 @@ export const UserProvider = ({ children }) => {
   };
 
   // 🧱 AUTH SECTION
-  const login = async (email, password, rememberMe = false) => {
-    if (!email || !password) return Alert.alert('Error', 'Please fill all fields');
+const login = async (email, password, rememberMe = false) => {
+  if (!email || !password) {
+    return Alert.alert('Error', 'Please fill all fields');
+  }
+
+  try {
+    const res = await fetch(`${backendBaseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        password,
+      }),
+    });
+
+    // ✅ Get raw text for debugging
+    const text = await res.text();
+    console.log('🔍 Raw response from backend:', text);
+
+    let data;
     try {
-      const res = await fetch(`${backendBaseUrl}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Login failed');
-
-      setUser(data.user);
-      setToken(data.token);
-
-      // ✅ Automatically set selectedCity on login
-      if (data.user?.location?.city) {
-        setSelectedCity(data.user.location.city);
-      }
-
-      if (rememberMe) {
-        await AsyncStorage.setItem('user', JSON.stringify(data.user));
-        await AsyncStorage.setItem('token', data.token);
-      }
-
-      return data.user;
+      data = JSON.parse(text);
     } catch (err) {
-      console.error('Login error:', err.message);
-      Alert.alert('Login Failed', err.message);
+      console.error('❌ Backend did not return JSON:', text);
+      Alert.alert(
+        'Server Error',
+        'Unexpected response from server.\nCheck your backend URL or network connection.'
+      );
       return null;
     }
-  };
+
+    if (!res.ok) {
+      throw new Error(data.message || 'Login failed');
+    }
+
+    // ✅ Successful login
+    setUser(data.user);
+    setToken(data.token);
+
+    // Automatically set city if present
+    if (data.user?.location?.city) {
+      setSelectedCity(data.user.location.city);
+    }
+
+    if (rememberMe) {
+      await AsyncStorage.setItem('user', JSON.stringify(data.user));
+      await AsyncStorage.setItem('token', data.token);
+    }
+
+    return data.user;
+  } catch (err) {
+    console.error('Login error:', err.message);
+    Alert.alert('Login Failed', err.message);
+    return null;
+  }
+};
+
 
   const logout = async () => {
     await AsyncStorage.multiRemove(['user', 'token']);
@@ -209,20 +234,35 @@ export const UserProvider = ({ children }) => {
 
   // 👥 CONTACTS
   const addContacts = async (userId, contacts) => {
-    if (!token) return Alert.alert('Not Authorized');
+  if (!token) return Alert.alert('Not Authorized');
+
+  try {
+    const res = await fetch(`${backendBaseUrl}/api/contacts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ userId, contacts }),
+    });
+
+    const text = await res.text();
+    console.log('🔍 Raw response from addContacts:', text);
+
+    let data;
     try {
-      const res = await fetch(`${backendBaseUrl}/api/contacts/contacts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ userId, contacts }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      Alert.alert('Success', 'Contacts added');
-    } catch (err) {
-      Alert.alert('Error', err.message);
+      data = JSON.parse(text);
+    } catch {
+      throw new Error('Server did not return JSON:\n' + text);
     }
-  };
+
+    if (!res.ok) throw new Error(data.message);
+    Alert.alert('Success', 'Contacts added');
+  } catch (err) {
+    console.error('Add contacts error:', err.message);
+    Alert.alert('Error', err.message);
+  }
+};
 
   const getContactsByUser = async () => {
     try {

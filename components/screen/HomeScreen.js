@@ -122,7 +122,7 @@ export default function HomeScreen() {
     const fetchContactsCount = async () => {
       if (!user?._id || !token) return;
       try {
-        const res = await fetch(`http://192.168.137.1:3000/api/contacts/${user._id}`, {
+        const res = await fetch(`http://192.168.50.236:3000/api/contacts/${user._id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();

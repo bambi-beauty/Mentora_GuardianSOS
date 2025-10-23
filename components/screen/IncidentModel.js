@@ -1,26 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, Text, TextInput, TouchableOpacity, ScrollView, Modal, Switch, Alert, ActivityIndicator 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Modal,
+  Switch,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
+import { useNavigation } from '@react-navigation/native'; // 👈 NEW
 import styles from './CommunityStyles';
-
 import { useUser } from '../../Users/useContext';
 
-const API_BASE_URL = 'http://192.168.137.1:3000/api/incidents';
-const GOOGLE_MAPS_API_KEY = 'AIzaSyATiDjrJwlS_pqvgxKHDCLAjBdPA4YIKxg'; 
+const API_BASE_URL = 'http://192.168.50.236:3000/api/incidents';
+const GOOGLE_MAPS_API_KEY = 'AIzaSyATiDjrJwlS_pqvgxKHDCLAjBdPA4YIKxg';
 
 const IncidentModal = ({ visible, onClose, onIncidentCreated }) => {
   const { token } = useUser();
+  const navigation = useNavigation(); // 👈 for navigation-based updates
 
   const [incident, setIncident] = useState({
     type: '',
     location: '',
     description: '',
     anonymous: false,
-    coordinates: null,  
+    coordinates: null,
   });
 
   const [loading, setLoading] = useState(false);
@@ -38,7 +47,7 @@ const IncidentModal = ({ visible, onClose, onIncidentCreated }) => {
     'Other',
   ];
 
-  // Get user location and reverse geocode when modal opens
+  // 🔹 Get user’s location & address when modal opens
   useEffect(() => {
     if (visible) {
       (async () => {
@@ -54,7 +63,6 @@ const IncidentModal = ({ visible, onClose, onIncidentCreated }) => {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
           const { latitude, longitude } = loc.coords;
 
-          // Reverse geocode to get address string
           const address = await reverseGeocode(latitude, longitude);
 
           setIncident((prev) => ({
@@ -69,7 +77,7 @@ const IncidentModal = ({ visible, onClose, onIncidentCreated }) => {
         }
       })();
     } else {
-      // Reset on modal close
+      // Reset when modal closes
       setIncident({
         type: '',
         location: '',
@@ -80,18 +88,14 @@ const IncidentModal = ({ visible, onClose, onIncidentCreated }) => {
     }
   }, [visible]);
 
-  // Reverse geocode helper using Google Maps API
+  // 🔹 Convert coordinates to a readable address
   const reverseGeocode = async (lat, lng) => {
     try {
       const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`;
       const response = await fetch(url);
       const data = await response.json();
 
-      if (
-        data.status === 'OK' &&
-        data.results &&
-        data.results.length > 0
-      ) {
+      if (data.status === 'OK' && data.results?.length > 0) {
         return data.results[0].formatted_address;
       } else {
         console.warn('Reverse geocode failed:', data.status);
@@ -103,6 +107,7 @@ const IncidentModal = ({ visible, onClose, onIncidentCreated }) => {
     }
   };
 
+  // 🔹 Submit new incident
   const handleSubmit = async () => {
     if (!incident.type || !incident.description || !incident.location) {
       Alert.alert('Missing Information', 'Please fill out all fields before submitting.');
@@ -127,7 +132,7 @@ const IncidentModal = ({ visible, onClose, onIncidentCreated }) => {
 
       console.log('Sending incident data:', incidentData);
 
-      const response = await fetch(`${API_BASE_URL}`, {
+      const response = await fetch(API_BASE_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -136,14 +141,25 @@ const IncidentModal = ({ visible, onClose, onIncidentCreated }) => {
         body: JSON.stringify(incidentData),
       });
 
-      console.log('Response status:', response.status);
-
       const data = await response.json();
-
       console.log('Response data:', data);
 
       if (response.ok && data.success) {
         Alert.alert('Success', 'Incident reported successfully!');
+
+        // ✅ Trigger map refresh immediately
+        if (onIncidentCreated) {
+          onIncidentCreated(data.data);
+        }
+
+        // ✅ If you’re using React Navigation, return to MapScreen
+        try {
+          navigation.navigate('Map');
+        } catch (err) {
+          // ignore if modal isn't inside a navigation stack
+        }
+
+        // ✅ Reset modal fields
         setIncident({
           type: '',
           location: '',
@@ -152,9 +168,7 @@ const IncidentModal = ({ visible, onClose, onIncidentCreated }) => {
           coordinates: null,
         });
 
-        if (onIncidentCreated) onIncidentCreated(data.data);
-
-        onClose();
+        onClose(); // close after refresh
       } else {
         throw new Error(data.message || 'Failed to report incident');
       }
@@ -169,6 +183,7 @@ const IncidentModal = ({ visible, onClose, onIncidentCreated }) => {
   return (
     <Modal animationType="slide" visible={visible} onRequestClose={onClose}>
       <SafeAreaView style={styles.modalContainer}>
+        {/* Header */}
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>Report an Incident</Text>
           <TouchableOpacity onPress={onClose}>
@@ -176,12 +191,14 @@ const IncidentModal = ({ visible, onClose, onIncidentCreated }) => {
           </TouchableOpacity>
         </View>
 
+        {/* Content */}
         <ScrollView style={styles.modalContent}>
           <Text style={styles.instructionsText}>
             Use this form to report safety incidents or concerns in your community. 
-            Your report helps keep everyone informed and safe; providing accurate details is crucial.
+            Your report helps keep everyone informed and safe.
           </Text>
 
+          {/* Type Selector */}
           <Text style={styles.label}>Type of Incident</Text>
           <View style={styles.typeButtonContainer}>
             {incidentTypes.map((type) => (
@@ -189,14 +206,14 @@ const IncidentModal = ({ visible, onClose, onIncidentCreated }) => {
                 key={type}
                 style={[
                   styles.typeButton,
-                  incident.type === type && styles.typeButtonSelected
+                  incident.type === type && styles.typeButtonSelected,
                 ]}
                 onPress={() => setIncident({ ...incident, type })}
               >
                 <Text
                   style={[
                     styles.typeButtonText,
-                    incident.type === type && styles.typeButtonTextSelected
+                    incident.type === type && styles.typeButtonTextSelected,
                   ]}
                 >
                   {type}
@@ -205,6 +222,7 @@ const IncidentModal = ({ visible, onClose, onIncidentCreated }) => {
             ))}
           </View>
 
+          {/* Location */}
           <Text style={styles.label}>Location</Text>
           {gettingLocation ? (
             <ActivityIndicator size="small" color="#2A5B8C" />
@@ -217,6 +235,7 @@ const IncidentModal = ({ visible, onClose, onIncidentCreated }) => {
             />
           )}
 
+          {/* Description */}
           <Text style={styles.label}>Description</Text>
           <TextInput
             style={[styles.inputField, styles.textArea]}
@@ -226,16 +245,18 @@ const IncidentModal = ({ visible, onClose, onIncidentCreated }) => {
             multiline
           />
 
+          {/* Anonymous Option */}
           <View style={styles.anonymousContainer}>
             <Switch
               value={incident.anonymous}
               onValueChange={(val) => setIncident({ ...incident, anonymous: val })}
             />
             <Text style={styles.anonymousText}>
-              If checked, your name will not be attached
+              Report anonymously
             </Text>
           </View>
 
+          {/* Submit Button */}
           <TouchableOpacity
             style={[styles.submitButton, loading && { opacity: 0.6 }]}
             onPress={handleSubmit}

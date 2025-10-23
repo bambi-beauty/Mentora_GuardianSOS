@@ -10,9 +10,10 @@ import {
 import MapView, { Marker, Circle, PROVIDER_GOOGLE } from 'react-native-maps';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import * as Location from 'expo-location';
+import { useIsFocused } from '@react-navigation/native'; // 👈 NEW
 
-const API_BASE_URL = 'http://192.168.60.27:3000/api'; 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyATiDjrJwlS_pqvgxKHDCLAjBdPA4YIKxg'; 
+const API_BASE_URL = 'http://192.168.50.236:3000/api';
+const GOOGLE_MAPS_API_KEY = 'AIzaSyATiDjrJwlS_pqvgxKHDCLAjBdPA4YIKxg';
 
 const SOUTH_AFRICA_COORDINATES = {
   latitude: -26.2041,
@@ -26,7 +27,9 @@ export default function MapScreen() {
   const [location, setLocation] = useState(null);
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const isFocused = useIsFocused(); // 👈 NEW
 
+  // Get user location
   useEffect(() => {
     (async () => {
       try {
@@ -48,11 +51,15 @@ export default function MapScreen() {
         console.warn('Location error:', err);
       }
     })();
-
-    fetchIncidents();
   }, []);
 
-  // Geocode location text with appended ", South Africa"
+  // Fetch incidents whenever screen gains focus
+  useEffect(() => {
+    if (isFocused) {
+      fetchIncidents();
+    }
+  }, [isFocused]);
+
   const geocodeLocation = async (locationText) => {
     try {
       const query = `${locationText}, South Africa`;
@@ -63,12 +70,7 @@ export default function MapScreen() {
       const response = await fetch(url);
       const data = await response.json();
 
-      if (
-        data.status === 'OK' &&
-        data.results &&
-        data.results.length > 0 &&
-        data.results[0].geometry
-      ) {
+      if (data.status === 'OK' && data.results.length > 0) {
         const { lat, lng } = data.results[0].geometry.location;
         return { lat, lng };
       } else {
@@ -83,8 +85,13 @@ export default function MapScreen() {
 
   const fetchIncidents = async () => {
     try {
+      console.log('Fetching incidents...');
+      setLoading(true);
+
       const response = await fetch(`${API_BASE_URL}/incidents`);
       const data = await response.json();
+
+      console.log('Fetched incidents:', data);
 
       if (!Array.isArray(data)) {
         console.error('Expected array, got:', data);
@@ -115,19 +122,27 @@ export default function MapScreen() {
 
   const getDangerZoneColor = (dangerLevel) => {
     switch (dangerLevel) {
-      case 'high': return 'rgba(255, 87, 87, 0.3)';
-      case 'medium': return 'rgba(255, 152, 0, 0.3)';
-      case 'low': return 'rgba(255, 230, 105, 0.3)';
-      default: return 'rgba(255, 87, 87, 0.3)';
+      case 'high':
+        return 'rgba(255, 87, 87, 0.3)';
+      case 'medium':
+        return 'rgba(255, 152, 0, 0.3)';
+      case 'low':
+        return 'rgba(255, 230, 105, 0.3)';
+      default:
+        return 'rgba(255, 87, 87, 0.3)';
     }
   };
 
   const getDangerZoneBorderColor = (dangerLevel) => {
     switch (dangerLevel) {
-      case 'high': return 'rgba(255, 87, 87, 0.7)';
-      case 'medium': return 'rgba(255, 152, 0, 0.7)';
-      case 'low': return 'rgba(255, 230, 105, 0.7)';
-      default: return 'rgba(255, 87, 87, 0.7)';
+      case 'high':
+        return 'rgba(255, 87, 87, 0.7)';
+      case 'medium':
+        return 'rgba(255, 152, 0, 0.7)';
+      case 'low':
+        return 'rgba(255, 230, 105, 0.7)';
+      default:
+        return 'rgba(255, 87, 87, 0.7)';
     }
   };
 
@@ -143,12 +158,7 @@ export default function MapScreen() {
           <Text>Loading incidents...</Text>
         </View>
       ) : (
-        <MapView
-          provider={PROVIDER_GOOGLE}
-          style={styles.fullMap}
-          region={region}
-        >
-          {/* User location marker */}
+        <MapView provider={PROVIDER_GOOGLE} style={styles.fullMap} region={region}>
           {location && (
             <Marker
               coordinate={{
@@ -161,22 +171,30 @@ export default function MapScreen() {
             </Marker>
           )}
 
-          {/* Incident danger zones */}
-          {incidents.map((incident) => (
-            incident.coordinates?.lat && incident.coordinates?.lng && (
-              <Circle
-                key={incident._id}
-                center={{
-                  latitude: incident.coordinates.lat,
-                  longitude: incident.coordinates.lng,
-                }}
-                radius={2000}
-                fillColor={getDangerZoneColor(incident.dangerLevel)}
-                strokeColor={getDangerZoneBorderColor(incident.dangerLevel)}
-                strokeWidth={2}
-              />
-            )
-          ))}
+          {incidents.map((incident) =>
+            incident.coordinates?.lat && incident.coordinates?.lng ? (
+              <React.Fragment key={incident._id}>
+                <Marker
+                  coordinate={{
+                    latitude: incident.coordinates.lat,
+                    longitude: incident.coordinates.lng,
+                  }}
+                  title={incident.type}
+                  description={incident.locationText}
+                />
+                <Circle
+                  center={{
+                    latitude: incident.coordinates.lat,
+                    longitude: incident.coordinates.lng,
+                  }}
+                  radius={2000}
+                  fillColor={getDangerZoneColor(incident.dangerLevel)}
+                  strokeColor={getDangerZoneBorderColor(incident.dangerLevel)}
+                  strokeWidth={2}
+                />
+              </React.Fragment>
+            ) : null
+          )}
         </MapView>
       )}
     </SafeAreaView>
@@ -184,10 +202,7 @@ export default function MapScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f5ff',
-  },
+  container: { flex: 1, backgroundColor: '#f0f5ff' },
   header: {
     backgroundColor: '#2A5B8C',
     flexDirection: 'row',
@@ -195,17 +210,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 15,
   },
-  logoText: {
-    color: 'white',
-    fontWeight: '700',
-    fontSize: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fullMap: {
-    ...StyleSheet.absoluteFillObject,
-  },
+  logoText: { color: 'white', fontWeight: '700', fontSize: 20 },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  fullMap: { ...StyleSheet.absoluteFillObject },
 });
