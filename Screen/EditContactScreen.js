@@ -13,7 +13,7 @@ export default function EditContactScreen({ navigation }) {
   const [contact, setContact] = useState("");
 
   const handleSave = () => {
-    // Save logic here
+   
     navigation.goBack();
   };
 
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
 
   header: {
     backgroundColor: "#2A5B8C",
-    paddingTop: (StatusBar.currentHeight || 40) + 5, // dynamic space below status bar
+    paddingTop: (StatusBar.currentHeight || 40) + 5, 
     paddingBottom: 18,
     paddingHorizontal: 15,
     borderBottomLeftRadius: 10,
