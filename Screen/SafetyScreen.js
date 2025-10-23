@@ -8,13 +8,14 @@ import {
   FlatList,
   Alert,
   Modal,
-  Platform
+  StatusBar,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Contacts from "expo-contacts";
 import { useUser } from "../Users/useContext";
 
-export default function SafetyScreen() {
+export default function SafetyScreen({ navigation }) {
   const [contacts, setContacts] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [firstName, setFirstName] = useState("");
@@ -45,42 +46,20 @@ export default function SafetyScreen() {
 
     try {
       if (editingContactId) {
-        // Update contact in backend
         await updateContacts(editingContactId, contactData);
-
-        // Update in local state
         setContacts((prev) =>
-          prev.map((contact) =>
-            contact.id === editingContactId
-              ? { ...contact, ...contactData }
-              : contact
-          )
+          prev.map((c) => (c.id === editingContactId ? { ...c, ...contactData } : c))
         );
         Alert.alert("Success", "Contact updated successfully.");
       } else {
-      
-        const created = await addContacts(
-          contactData.name,
-          contactData.lastname,
-          contactData.phoneNumber
-        );
-
-      
-        setContacts((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(), 
-            ...contactData,
-          },
-        ]);
-
+        await addContacts(contactData.name, contactData.lastname, contactData.phoneNumber);
+        setContacts((prev) => [...prev, { id: Date.now().toString(), ...contactData }]);
         Alert.alert("Success", "Contact added successfully.");
       }
-
       resetForm();
       setModalVisible(false);
     } catch (error) {
-      console.error("Contact save error:", error);
+      console.error(error);
       Alert.alert("Error", "Something went wrong. Try again.");
     }
   };
@@ -94,11 +73,8 @@ export default function SafetyScreen() {
     });
 
     if (!confirmed) return;
-
     const success = await deleteContact(id);
-    if (success) {
-      setContacts((prev) => prev.filter((contact) => contact.id !== id));
-    }
+    if (success) setContacts((prev) => prev.filter((c) => c.id !== id));
   };
 
   const pickContact = async () => {
@@ -112,25 +88,21 @@ export default function SafetyScreen() {
       const contact = await Contacts.presentContactPickerAsync({
         fields: [Contacts.Fields.PhoneNumbers],
       });
-
-      if (!contact) return;
-
-      const phones = contact.phoneNumbers;
-      if (!phones || phones.length === 0) {
+      if (!contact || !contact.phoneNumbers?.length) {
         Alert.alert("No Phone Number", "Selected contact has no phone number.");
         return;
       }
-
-      const imported = {
-        id: contact.id || Date.now().toString(),
-        firstName: contact.firstName || "",
-        lastName: contact.lastName || "",
-        phoneNumber: phones[0].number,
-      };
-
-      setContacts([...contacts, imported]);
+      setContacts((prev) => [
+        ...prev,
+        {
+          id: contact.id || Date.now().toString(),
+          firstName: contact.firstName || "",
+          lastName: contact.lastName || "",
+          phoneNumber: contact.phoneNumbers[0].number,
+        },
+      ]);
     } catch (error) {
-      console.log("Error picking contact: ", error);
+      console.error(error);
       Alert.alert("Error", "Could not pick contact.");
     }
   };
@@ -143,69 +115,68 @@ export default function SafetyScreen() {
     setModalVisible(true);
   };
 
+  const renderContactItem = ({ item }) => (
+    <View style={styles.contactCard}>
+      <Ionicons name="person-circle" size={36} color="#2A5B8C" />
+      <View style={styles.contactInfo}>
+        <Text style={styles.contactText}>
+          {item.firstName || item.name} {item.lastName || item.lastname}
+        </Text>
+        <Text style={styles.phoneText}>{item.phoneNumber}</Text>
+      </View>
+      <View style={styles.contactActions}>
+        <TouchableOpacity onPress={() => editContact(item)}>
+          <Ionicons name="pencil" size={24} color="#2A5B8C" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => removeContact(item.id)} style={{ marginLeft: 15 }}>
+          <Ionicons name="trash" size={24} color="#FF5C5C" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>Safety</Text>
+      {/* HEADER */}
+      <View style={styles.header}>
+        <StatusBar barStyle="light-content" backgroundColor="#2A5B8C" />
+        <View style={styles.headerContent}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back-outline" size={28} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Safety</Text>
+        </View>
+      </View>
+
+      {/* BODY */}
       <Text style={styles.subHeading}>
         Add trusted contacts who can be reached in case of emergency.
       </Text>
 
-      <TouchableOpacity
-        style={styles.openFormButton}
-        onPress={() => {
-          resetForm();
-          setModalVisible(true);
-        }}
-      >
-        <Ionicons name="add-circle" size={28} color="#2171B5" />
-        <Text style={styles.openFormText}>Add Contact Manually</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.importBtn} onPress={pickContact}>
-        <Ionicons name="person-add-outline" size={24} color="#2171B5" />
-        <Text style={styles.importBtnText}>Import from Phone</Text>
-      </TouchableOpacity>
+      <View style={styles.actionButtons}>
+        <TouchableOpacity style={styles.button} onPress={() => { resetForm(); setModalVisible(true); }}>
+          <Ionicons name="add-circle" size={28} color="#fff" />
+          <Text style={styles.buttonText}>Add Contact Manually</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.button, styles.importButton]} onPress={pickContact}>
+          <Ionicons name="person-add-outline" size={24} color="#fff" />
+          <Text style={styles.buttonText}>Import from Phone</Text>
+        </TouchableOpacity>
+      </View>
 
       <FlatList
         data={contacts}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.contactCard}>
-            <Ionicons name="person-circle" size={28} color="#2171B5" />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.contactText}>
-                {item.firstName || item.name} {item.lastName || item.lastname}
-              </Text>
-              <Text style={styles.phoneText}>{item.phoneNumber}</Text>
-            </View>
-
-            <TouchableOpacity style={styles.pencil} onPress={() => editContact(item)}>
-              <Ionicons name="pencil" size={24} color="blue" />
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => removeContact(item.id)}>
-              <Ionicons name="trash" size={24} color="red" />
-            </TouchableOpacity>
-          </View>
-        )}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No trusted contacts added yet</Text>
-        }
+        renderItem={renderContactItem}
+        ListEmptyComponent={<Text style={styles.emptyText}>No trusted contacts added yet</Text>}
+        contentContainerStyle={{ paddingBottom: 20 }}
       />
 
-      {/* Modal for manual add/edit */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
+      {/* MODAL */}
+      <Modal animationType="slide" transparent visible={modalVisible}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {editingContactId ? "Edit Contact" : "Add New Contact"}
-            </Text>
-
+            <Text style={styles.modalTitle}>{editingContactId ? "Edit Contact" : "Add New Contact"}</Text>
             <TextInput
               style={styles.modalInput}
               placeholder="First Name"
@@ -225,19 +196,13 @@ export default function SafetyScreen() {
               value={phoneNumber}
               onChangeText={setPhoneNumber}
             />
-
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.saveButton} onPress={saveContactManually}>
-                <Text style={styles.buttonText}>
-                  {editingContactId ? "Update" : "Save"}
-                </Text>
+                <Text style={styles.buttonText}>{editingContactId ? "Update" : "Save"}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.cancelButton}
-                onPress={() => {
-                  resetForm();
-                  setModalVisible(false);
-                }}
+                onPress={() => { resetForm(); setModalVisible(false); }}
               >
                 <Text style={styles.buttonText}>Cancel</Text>
               </TouchableOpacity>
@@ -250,119 +215,27 @@ export default function SafetyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#EFF3FF",
-    padding: 20,
-    marginTop: Platform.OS === "android" ? 30 : 0,
-  },
-  heading: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "#2171B5",
-    marginBottom: 5,
-  },
-  subHeading: {
-    fontSize: 14,
-    color: "#555",
-    marginBottom: 20,
-  },
-  openFormButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  openFormText: {
-    marginLeft: 8,
-    fontSize: 16,
-    color: "#2171B5",
-  },
-  importBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  importBtnText: {
-    marginLeft: 8,
-    fontSize: 16,
-    color: "#2171B5",
-  },
-  contactCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  contactText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-  },
-  phoneText: {
-    fontSize: 14,
-    color: "#777",
-  },
-  emptyText: {
-    textAlign: "center",
-    marginTop: 40,
-    fontSize: 14,
-    color: "#777",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.3)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 20,
-    width: "85%",
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#2171B5",
-    marginBottom: 15,
-    textAlign: "center",
-  },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 12,
-    fontSize: 15,
-  },
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  saveButton: {
-    backgroundColor: "#2171B5",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  cancelButton: {
-    backgroundColor: "#aaa",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  pencil:{
-    marginRight:20
-  }
+  container: { flex: 1, backgroundColor: "#EFF3FF", padding: 20, marginTop: Platform.OS === "android" ? 30 : 0 },
+  header: { backgroundColor: "#2A5B8C", paddingTop: (Platform.OS === "android" ? StatusBar.currentHeight || 40 : 20) + 5, paddingBottom: 18, paddingHorizontal: 15, borderBottomLeftRadius: 10, borderBottomRightRadius: 10, marginBottom: 15 },
+  headerContent: { flexDirection: "row", alignItems: "center" },
+  headerTitle: { fontSize: 22, fontWeight: "bold", color: "#fff", marginLeft: 10 },
+  subHeading: { fontSize: 14, color: "#555", marginBottom: 20 },
+  actionButtons: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
+  button: { flexDirection: "row", alignItems: "center", backgroundColor: "#2A5B8C", paddingVertical: 12, paddingHorizontal: 15, borderRadius: 10, flex: 1, justifyContent: "center" },
+  importButton: { marginLeft: 10 },
+  buttonText: { color: "#fff", fontWeight: "600", fontSize: 16, marginLeft: 8 },
+  contactCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", padding: 12, borderRadius: 12, marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  contactInfo: { flex: 1, marginLeft: 10 },
+  contactText: { fontSize: 16, fontWeight: "600", color: "#333" },
+  phoneText: { fontSize: 14, color: "#777" },
+  contactActions: { flexDirection: "row", alignItems: "center" },
+  emptyText: { textAlign: "center", marginTop: 50, fontSize: 14, color: "#777" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.3)", justifyContent: "center", alignItems: "center" },
+  modalContent: { backgroundColor: "#fff", borderRadius: 12, padding: 20, width: "85%", elevation: 5 },
+  modalTitle: { fontSize: 18, fontWeight: "bold", color: "#2A5B8C", marginBottom: 15, textAlign: "center" },
+  modalInput: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12, marginBottom: 15, fontSize: 15 },
+  modalButtons: { flexDirection: "row", justifyContent: "space-between" },
+  saveButton: { backgroundColor: "#2A5B8C", paddingVertical: 12, paddingHorizontal: 25, borderRadius: 10 },
+  cancelButton: { backgroundColor: "#aaa", paddingVertical: 12, paddingHorizontal: 25, borderRadius: 10 },
 });
+

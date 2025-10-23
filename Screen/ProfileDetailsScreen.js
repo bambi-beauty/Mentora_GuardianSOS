@@ -1,63 +1,75 @@
 import React from "react";
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  StatusBar,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useUser } from "../Users/useContext";
 
 export default function ProfileDetailsScreen({ navigation }) {
+  const { user } = useUser();
 
-  const handleEdit =()=>navigation.navigate("EditProfileScreen");
-  const {user,selectedCountry,selectedState,selectedCity,selectedStreet} = useUser();
-  
+  const handleEditName = () => navigation.navigate("EditNameScreen");
+  const handleEditContact = () => navigation.navigate("EditContactScreen");
+  const handleEditEmail = () => navigation.navigate("EditEmailScreen");
+
   return (
     <ScrollView style={styles.container}>
-
+      {/* BLUE HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back-outline" size={28} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile Details</Text>
+        <StatusBar barStyle="light-content" backgroundColor="#2A5B8C" />
+        <View style={styles.headerContent}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back-outline" size={26} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Personal info</Text>
+        </View>
       </View>
 
+      {/* Avatar Section */}
+      <View style={styles.profileCard}>
+        <View style={styles.avatarPlaceholder}>
+          <TouchableOpacity style={styles.addIcon}>
+            <Ionicons name="add" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.profileContainer}>
-        <Image
-          source={require("../assets/avatar-placeholder.png")}
-          style={styles.avatar}
-        />
-        <Text style={styles.name}>{user ? user.name : 'Guest'}</Text>
-        <Text style={styles.email}>{user ? user.email : 'Guest'}</Text>
-
-        <TouchableOpacity
-        style={styles.editButton}
-        onPress={handleEdit} 
-      >
-        <Ionicons name="pencil-outline" size={16} color="#2171B5" />
-        <Text style={styles.editButtonText}>Edit Profile</Text>
-      </TouchableOpacity>
-
-
+        <Text style={styles.addPhotoText}>
+          Add a profile photo so responders can recognise you
+        </Text>
+        <Text style={styles.photoHelpText}>
+          When can someone see my photo?
+        </Text>
       </View>
-      <View style={styles.detailsSection}>
-        <Text style={styles.sectionTitle}>Personal Info:</Text>
 
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Full Name:</Text>
-          <Text style={styles.detailValue}>{user ? user.name : 'Guest'}</Text>
+      {/* Personal Info Section */}
+      <View style={styles.infoContainer}>
+        <View style={styles.infoItem}>
+          <Ionicons name="person-outline" size={20} color="#555" />
+          <Text style={styles.infoText}>{user?.name || "Guest User"}</Text>
+          <TouchableOpacity onPress={handleEditName}>
+            <Text style={styles.editText}>Edit</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Email:</Text>
-          <Text style={styles.detailValue}>{user ? user.email : 'Guest'}</Text>
+        <View style={styles.infoItem}>
+          <Ionicons name="call-outline" size={20} color="#555" />
+          <Text style={styles.infoText}>{user?.phoneNumber || "Not added"}</Text>
+          <TouchableOpacity onPress={handleEditContact}>
+            <Text style={styles.editText}>Edit</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Phone:</Text>
-          <Text style={styles.detailValue}>{user ? user.phoneNumber : ''}</Text>
-        </View>
-
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Location</Text>
-          <Text style={styles.detailValue}>{selectedCountry},{selectedState},{selectedCity},{selectedStreet}</Text>
+        <View style={styles.infoItem}>
+          <Ionicons name="mail-outline" size={20} color="#555" />
+          <Text style={styles.infoText}>{user?.email || "Not added"}</Text>
+          <TouchableOpacity onPress={handleEditEmail}>
+            <Text style={styles.editText}>Edit</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </ScrollView>
@@ -67,92 +79,99 @@ export default function ProfileDetailsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#EFF3FF",
-    marginTop:20
+    backgroundColor: "#fff",
   },
+
   header: {
+    backgroundColor: "#2A5B8C",
+    paddingTop: (StatusBar.currentHeight || 40) + 5, // lower arrow slightly
+    paddingBottom: 20,
+    paddingHorizontal: 15,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+  },
+  headerContent: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#2171B5",
-    paddingVertical: 15,
-    paddingHorizontal: 15,
-    height:60
+  },
+  backButton: {
+    paddingVertical: 5,
+    paddingRight: 10,
   },
   headerTitle: {
-    color: "#fff",
-    fontSize: 20,
-    fontWeight: "bold",
-    marginLeft: 15,
-  },
-  profileContainer: {
-    alignItems: "center",
-    backgroundColor: "#fff",
-    margin: 20,
-    borderRadius: 12,
-    paddingVertical: 25,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 10,
-  },
-  name: {
     fontSize: 22,
-    fontWeight: "600",
-    color: "#333",
-  },
-  email: {
-    fontSize: 14,
-    color: "#777",
-    marginBottom: 15,
-  },
-  editButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#2171B5",
-    paddingHorizontal: 15,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  editButtonText: {
-    color: "#2171B5",
     fontWeight: "bold",
-    marginLeft: 6,
+    color: "#fff",
+    marginLeft: 5,
   },
-  detailsSection: {
-    backgroundColor: "#fff",
+
+  profileCard: {
+    alignItems: "center",
+    backgroundColor: "#F8F8F8",
     marginHorizontal: 20,
     borderRadius: 12,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    paddingVertical: 25,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: "#E6E6E6",
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#2171B5",
-    marginBottom: 15,
+  avatarPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: "#ccc",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+    backgroundColor: "#fff",
   },
-  detailItem: {
-    marginBottom: 15,
+  addIcon: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: "#2A5B8C",
+    borderRadius: 10,
+    padding: 2,
   },
-  detailLabel: {
+  addPhotoText: {
     fontSize: 14,
-    color: "#777",
-  },
-  detailValue: {
-    fontSize: 16,
-    color: "#333",
     fontWeight: "500",
-    marginTop: 3,
+    color: "#000",
+    textAlign: "center",
+    marginTop: 10,
+  },
+  photoHelpText: {
+    fontSize: 13,
+    color: "#2A5B8C",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  infoContainer: {
+    marginHorizontal: 20,
+    marginTop: 25,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E6E6E6",
+  },
+  infoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 18,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  infoText: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 15,
+    color: "#333",
+  },
+  editText: {
+    color: "#2A5B8C",
+    fontWeight: "600",
   },
 });
+

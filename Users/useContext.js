@@ -74,6 +74,22 @@ export const UserProvider = ({ children }) => {
     })();
   }, []);
 
+  //Load user data from AsyncStorage when the app starts
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const storedUser = await AsyncStorage.getItem('user');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        }
+      } catch (error) {
+        console.error('Error loading user:', error);
+      }
+    };
+    loadUser();
+  }, []);
+
+
   // ✅ Keep selectedCity updated if user changes
   useEffect(() => {
     if (user?.location?.city && !selectedCity) {
@@ -156,9 +172,14 @@ export const UserProvider = ({ children }) => {
 
       // ✅ If location provided during signup, save it
       if (location?.city) {
-        setSelectedCity(location.city);
-      }
+      setSelectedCity(location.city);
+    }
 
+    // ✅ Add these 3 lines:
+    if (data.user) {
+      setUser(data.user);
+      await AsyncStorage.setItem("user", JSON.stringify(data.user));
+    }
       return data;
     } catch (err) {
       Alert.alert('Signup Error', err.message);
