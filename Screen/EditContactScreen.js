@@ -6,15 +6,27 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useUser } from "../Users/useContext"; // adjust path
 
 export default function EditContactScreen({ navigation }) {
-  const [contact, setContact] = useState("");
+  const { user, updateUser } = useUser();
+  const [contact, setContact] = useState(user?.phoneNumber || "");
 
-  const handleSave = () => {
-   
-    navigation.goBack();
+  const handleSave = async () => {
+    // ✅ Validate input
+    if (!contact.trim()) return Alert.alert("Error", "Phone number cannot be empty");
+
+    try {
+      await updateUser({ phoneNumber: contact });
+      Alert.alert("Success", "Profile updated!");
+      navigation.goBack();
+    } catch (err) {
+      console.error("❌ Update failed:", err);
+      Alert.alert("Error", "Failed to update profile");
+    }
   };
 
   return (
@@ -49,6 +61,7 @@ export default function EditContactScreen({ navigation }) {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f5f8fc" },

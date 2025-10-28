@@ -1,13 +1,13 @@
 // context/ImageContext.js
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { useUser } from '../Users/useContext';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { useUser } from "../Users/useContext";
 
 const ImageContext = createContext();
 
 export const useImage = () => {
   const context = useContext(ImageContext);
   if (!context) {
-    throw new Error('useImage must be used within an ImageProvider');
+    throw new Error("useImage must be used within an ImageProvider");
   }
   return context;
 };
@@ -20,38 +20,31 @@ export const ImageProvider = ({ children }) => {
 
   const backendBaseUrl = "https://baroscopical-natosha-overrigid.ngrok-free.dev";
 
-  // Fetch user profile image
+  // Fetch profile image from backend
   const fetchProfileImage = async (userId) => {
     if (!userId) {
+      setProfileImageUrl(null);
       setLoading(false);
       return;
     }
 
     try {
-      setImageError(false);
       setLoading(true);
-      
-      const response = await fetch(
-        `${backendBaseUrl}/api/users/${userId}/profile-image`
-      );
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
+      setImageError(false);
+
+      const response = await fetch(`${backendBaseUrl}/api/users/${userId}/profile-image`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
       const data = await response.json();
-      
+
       if (data.profileImage) {
-        // Add cache busting parameter to avoid cached images
-        const cacheBustedUrl = `${data.profileImage}?t=${Date.now()}`;
-        setProfileImageUrl(cacheBustedUrl);
-        console.log('Profile image loaded:', cacheBustedUrl);
+        // Add cache-busting query param
+        setProfileImageUrl(`${data.profileImage}?t=${Date.now()}`);
       } else {
         setProfileImageUrl(null);
-        console.log('No profile image found');
       }
     } catch (error) {
-      console.error('Error fetching profile image:', error);
+      console.error("Error fetching profile image:", error);
       setProfileImageUrl(null);
       setImageError(true);
     } finally {
@@ -59,18 +52,17 @@ export const ImageProvider = ({ children }) => {
     }
   };
 
-  // Refresh profile image
+  // Refresh image manually
   const refreshProfileImage = async () => {
     if (user?._id) {
       await fetchProfileImage(user._id);
     }
   };
 
-  // Update profile image immediately
+  // Update profile image instantly
   const updateProfileImage = (newImageUrl) => {
     if (newImageUrl) {
-      const cacheBustedUrl = `${newImageUrl}?t=${Date.now()}`;
-      setProfileImageUrl(cacheBustedUrl);
+      setProfileImageUrl(`${newImageUrl}?t=${Date.now()}`);
       setImageError(false);
     }
   };
@@ -81,7 +73,7 @@ export const ImageProvider = ({ children }) => {
     setImageError(false);
   };
 
-  // Fetch image when user changes
+  // Fetch profile image when user changes
   useEffect(() => {
     if (user?._id) {
       fetchProfileImage(user._id);
@@ -101,9 +93,5 @@ export const ImageProvider = ({ children }) => {
     fetchProfileImage: () => user?._id && fetchProfileImage(user._id),
   };
 
-  return (
-    <ImageContext.Provider value={value}>
-      {children}
-    </ImageContext.Provider>
-  );
+  return <ImageContext.Provider value={value}>{children}</ImageContext.Provider>;
 };

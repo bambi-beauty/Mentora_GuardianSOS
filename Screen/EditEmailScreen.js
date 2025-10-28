@@ -6,15 +6,26 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useUser } from "../Users/useContext"; // adjust path
 
 export default function EditEmailScreen({ navigation }) {
-  const [email, setEmail] = useState("");
+  const { user, updateUser } = useUser();
+  const [email, setEmail] = useState(user?.email || "");
 
-  const handleSave = () => {
-    // Save logic here
-    navigation.goBack();
+  const handleSave = async () => {
+    if (!email.trim()) return Alert.alert("Error", "Email cannot be empty");
+
+    try {
+      await updateUser({ email });
+      Alert.alert("Success", "Profile updated!");
+      navigation.goBack();
+    } catch (err) {
+      console.error("❌ Update failed:", err);
+      Alert.alert("Error", "Failed to update profile");
+    }
   };
 
   return (
@@ -40,6 +51,7 @@ export default function EditEmailScreen({ navigation }) {
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
+          autoCapitalize="none"
         />
 
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
@@ -49,7 +61,6 @@ export default function EditEmailScreen({ navigation }) {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f5f8fc" },
 

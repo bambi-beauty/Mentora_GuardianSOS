@@ -253,6 +253,21 @@ export const UserProvider = ({ children }) => {
     return !status.completed;
   };
 
+  // ✅ Update user data generically
+const updateUser = async (newData) => {
+  try {
+    const currentUser = user || {};
+    const updated = { ...currentUser, ...newData };
+    setUser(updated);
+    await AsyncStorage.setItem('user', JSON.stringify(updated));
+    console.log('✅ User updated successfully:', updated);
+  } catch (err) {
+    console.error('❌ Error updating user:', err);
+    Alert.alert('Error', 'Failed to update user data');
+  }
+};
+
+
   // ✅ Update completeOnboarding function
   const completeOnboarding = async (userInfo = {}) => {
     try {
@@ -880,6 +895,7 @@ export const UserProvider = ({ children }) => {
         deleteUser,
         uploadImage,
         completeOnboarding,
+        updateUser,
         
         // Onboarding Functions
         hasCompletedOnboarding,
@@ -926,6 +942,8 @@ export const UserProvider = ({ children }) => {
     </UserContext.Provider>
   );
 };
+
+
 
 export const useUser = () => {
   const context = useContext(UserContext);
