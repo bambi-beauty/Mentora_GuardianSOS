@@ -11,8 +11,9 @@
  const DeleteAccount = ({ navigation }) => {
    const { deleteUser } = useUser();
    const [loading, setLoading] = useState(false)
+
    const confirmDelete = () => {
-     // Show confirmation toast using custom modal-like approach
+    
      Toast.show({
        type: 'info',
        text1: 'Confirm Deletion',
@@ -36,7 +37,7 @@
        })
        navigation.reset({
          index: 0,
-         routes: [{ name: 'LoginScreen' }],
+         routes: [{ name: 'Login' }],
        });
      } catch (error) {
        Toast.show({

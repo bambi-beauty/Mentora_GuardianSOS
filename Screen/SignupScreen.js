@@ -11,11 +11,12 @@ import {
   Platform,
   KeyboardAvoidingView
 } from 'react-native';
+import TermsModal from './TermsModal';
 import Checkbox from 'expo-checkbox';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useUser } from '../Users/useContext';
 import { formatPhoneNumber } from '../utils/formatPhoneNumber';
-import { Picker } from '@react-native-picker/picker'; // Add this if you don't have it installed
+import { Picker } from '@react-native-picker/picker'; 
 import { useGoogleAuth } from '../Users/authFunctions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -28,6 +29,8 @@ const SignupScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [cellphoneNum, setCellphoneNum] = useState('');
   const [loading, setLoading] = useState(false);
+  const [termsModalVisible, setTermsModalVisible] = useState(false);
+  const [showPasswordHint, setShowPasswordHint] = useState(false);
   const [passwordRules, setPasswordRules] = useState({
     length: false,
     uppercase: false,
@@ -248,6 +251,10 @@ useEffect(() => {
   const GoToLogin = () => {
     navigation.navigate('Login');
   };
+ 
+useEffect(() => {
+  console.log('Terms modal visibility:', termsModalVisible);
+}, [termsModalVisible]);
 
  return (
     <KeyboardAvoidingView
@@ -273,28 +280,6 @@ useEffect(() => {
             <>
               <Text style={styles.title}>Create Account</Text>
               <Text style={styles.subtitle}>Join GuardianSOS for enhanced safety</Text>
-
-              {/* Social Sign-Up Buttons */}
-              <TouchableOpacity style={styles.socialButtonLight} >
-                <View style={styles.buttonContent}>
-                  <Icon name="google" size={20} color="#000" />
-                  <Text style={styles.socialTextLight}>Sign up with Google</Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.socialButtonDark} >
-                <View style={styles.buttonContent}>
-                  <Icon name="apple" size={20} color="#fff" />
-                  <Text style={styles.socialText}>Sign up with Apple</Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.socialButtonBlue} >
-                <View style={styles.buttonContent}>
-                  <Icon name="facebook" size={20} color="#fff" />
-                  <Text style={styles.socialText}>Sign up with Facebook</Text>
-                </View>
-              </TouchableOpacity>
 
               {/* Form Fields */}
               <Text style={styles.label}>Full Name</Text>
@@ -328,7 +313,6 @@ useEffect(() => {
                 autoCapitalize="none"
                 placeholderTextColor="#888"
               />
-
               <Text style={styles.label}>Password</Text>
               <View style={styles.passwordInputContainer}>
                 <TextInput
@@ -338,6 +322,7 @@ useEffect(() => {
                   value={password}
                   onChangeText={setPassword}
                   placeholderTextColor="#888"
+                  onFocus={() => setShowPasswordHint(true)} 
                 />
                 <TouchableOpacity onPress={() => setPasswordVisible(!passwordVisible)}>
                   <Icon
@@ -348,9 +333,8 @@ useEffect(() => {
                   />
                 </TouchableOpacity>
               </View>
-
               {/* Password Rules Hint */}
-              {!Object.values(passwordRules).every(Boolean) && (
+              {password.length > 0 && (
                 <View style={styles.passwordHintContainer}>
                   <Text style={styles.passwordHintHeader}>Password must include:</Text>
                   {[
@@ -358,7 +342,7 @@ useEffect(() => {
                     { label: 'One uppercase letter (A-Z)', key: 'uppercase' },
                     { label: 'One lowercase letter (a-z)', key: 'lowercase' },
                     { label: 'One number (0-9)', key: 'number' },
-                    { label: 'One special character (!@#$... etc)', key: 'specialChar' },
+                    { label: 'One special character (!@#$%^&*)', key: 'specialChar' },
                   ].map((rule) => (
                     <View style={styles.passwordRuleItem} key={rule.key}>
                       <Icon
@@ -531,9 +515,13 @@ useEffect(() => {
                 />
                 <Text style={styles.checkboxLabel}>
                   I agree to the{' '}
-                  <Text style={styles.linkText} onPress={() => navigation.navigate('Terms')}>
+                  <Text style={styles.linkText} onPress={() => {
+                    console.log('Terms link clicked');
+                    setTermsModalVisible(true);
+                  }}>
                     Terms of Service
                   </Text>
+
                 </Text>
               </View>
 
@@ -549,7 +537,14 @@ useEffect(() => {
             </>
           )}
         </View>
+
+        
+        
       </ScrollView>
+      <TermsModal 
+          visible={termsModalVisible}
+          onClose={() => setTermsModalVisible(false)}
+        />
     </KeyboardAvoidingView>
   );
 };

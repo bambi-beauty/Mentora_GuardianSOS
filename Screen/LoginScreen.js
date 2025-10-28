@@ -1,3 +1,7 @@
+import { auth } from "../config/firebaseConfig";
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
+import { loginWithFacebook } from '../Users/authFunctions';
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -14,8 +18,8 @@ import {
 import { useUser } from "../Users/useContext";
 import Icon from "react-native-vector-icons/FontAwesome";
 
-export default function LoginScreen({ navigation }) {
-  const { login, user, token, loading } = useUser();
+export default function LoginScreen({ navigation }){
+  const { login, user, token, loading, getOnboardingStatus } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -24,15 +28,89 @@ export default function LoginScreen({ navigation }) {
   const GoToSignUp = () => {
     navigation.navigate("Signup")
   }
+
   useEffect(() => {
-    if (!loading && token && user) {
-      if (user.onboardingCompleted) {
-        navigation.reset({ index: 0, routes: [{ name: "MainApp" }] });
+    console.log("🔄 Auth state check:", { 
+      loading, 
+      token: !!token, 
+      user: !!user 
+    });
+    
+    // Only proceed when loading is complete
+    if (!loading) {
+      if (token && user) {
+        const onboardingStatus = getOnboardingStatus();
+        
+        console.log("✅ User is authenticated - Onboarding status:", {
+          email: user.email,
+          onboardingCompleted: user.onboardingCompleted,
+          hasEmergencyContacts: user.emergencyContacts?.length > 0,
+          hasProfileImage: !!user.profileImage,
+          missingSteps: onboardingStatus.missingSteps
+        });
+        
+        // Use setTimeout to ensure navigation happens after render
+        setTimeout(() => {
+          if (onboardingStatus.completed) {
+            console.log("🚀 All onboarding completed - Navigating to MainApp");
+            navigation.reset({ index: 0, routes: [{ name: "MainApp" }] });
+          } else {
+            console.log("📋 Onboarding incomplete - Missing steps:", onboardingStatus.missingSteps);
+            
+            // Navigate to appropriate onboarding screen based on what's missing
+            if (onboardingStatus.missingSteps.includes('emergency_contacts')) {
+              console.log("🚀 Navigating to EmergencyContacts");
+              navigation.reset({ index: 0, routes: [{ name: "EmergencyContacts" }] });
+            } else if (onboardingStatus.missingSteps.includes('profile_image')) {
+              console.log("🚀 Navigating to ProfileImage screen");
+              // Replace 'ProfileImage' with your actual profile image screen name
+              navigation.reset({ index: 0, routes: [{ name: "ProfileImage" }] });
+            } else if (onboardingStatus.missingSteps.includes('basic_info')) {
+              console.log("🚀 Navigating to basic onboarding");
+              navigation.reset({ index: 0, routes: [{ name: "EmergencyContacts" }] });
+            } else {
+              // Fallback
+              console.log("🚀 Navigating to EmergencyContacts (fallback)");
+              navigation.reset({ index: 0, routes: [{ name: "EmergencyContacts" }] });
+            }
+          }
+        }, 100);
       } else {
-        navigation.reset({ index: 0, routes: [{ name: "EmergencyContacts" }] });
+        console.log("❌ No valid authentication found");
       }
     }
-  }, [loading, token, user]);
+  }, [loading, token, user, navigation, getOnboardingStatus]);
+
+  WebBrowser.maybeCompleteAuthSession();
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    expoClientId: "124134869029-51j7cif66par7nf4n059cj8k4mq8v7hp.apps.googleusercontent.com", 
+    iosClientId: "124134869029-p774bi194qcjgfosvjd333rtdhp0g9rh.apps.googleusercontent.com", 
+    androidClientId: "YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com",
+  });
+
+  // Google auth handler
+  useEffect(() => {
+    if (response?.type === "success") {
+      const { id_token } = response.params;
+      const credential = auth.GoogleAuthProvider.credential(id_token);
+
+      auth.signInWithCredential(credential)
+        .then((userCredential) => {
+          console.log("✅ Logged in with Google!");
+          return userCredential.user.getIdToken();
+        })
+        .then((idToken) => {
+          console.log("Google ID token:", idToken);
+          // Note: You'll need to handle Google login in your context
+          // For now, it will rely on the useEffect above for navigation
+        })
+        .catch((error) => {
+          console.error("Google sign-in error:", error);
+          Alert.alert("Google Sign-In Failed", error.message);
+        });
+    }
+  }, [response]);
 
   useEffect(() => {
     if (user?.email) {
@@ -40,31 +118,80 @@ export default function LoginScreen({ navigation }) {
     }
   }, [user]);
 
+  // ✅ Login handler
   const handleLogin = async () => {
     if (loggingIn) return;
+    
+    // Basic validation
+    if (!email || !password) {
+      Alert.alert("Error", "Please enter both email and password");
+      return;
+    }
+
     setLoggingIn(true);
-    navigation.reset({ index: 0, routes: [{ name: "MainApp" }] });
-    return;
     try {
+      console.log("🔐 Starting login process...");
       const loggedInUser = await login(email, password, rememberMe);
+      
       if (!loggedInUser) {
-        throw new Error("User not returned from login.");
+        throw new Error("Login failed - no user returned");
       }
+      
+      console.log("✅ Login successful, user data:", {
+        email: loggedInUser.email,
+        onboardingCompleted: loggedInUser.onboardingCompleted,
+        emergencyContacts: loggedInUser.emergencyContacts?.length || 0,
+        profileImage: !!loggedInUser.profileImage,
+        userId: loggedInUser._id
+      });
+      
+      // Clear form
       setEmail("");
       setPassword("");
-
+      
+      // Navigation will be handled by the useEffect above
+      // when token and user are updated in the context
+      
     } catch (error) {
+      console.error("❌ Login error:", error);
       Alert.alert("Login Failed", error.message || "Invalid email or password");
     } finally {
       setLoggingIn(false);
     }
-
   };
+
   const toggleRememberMe = () => setRememberMe(prev => !prev);
 
   const handleForgotPassword = () => {
     navigation.navigate('Forgot_Password')
   }
+
+  // ✅ ENHANCED DEBUG: Check onboarding status
+  const debugTokenState = () => {
+    const onboardingStatus = getOnboardingStatus();
+    
+    console.log("🔍 DEBUG Current state:", { 
+      loading, 
+      token: token ? "Exists" : "None", 
+      user: user ? `Exists (${user.email})` : "None",
+      onboardingCompleted: user?.onboardingCompleted,
+      emergencyContacts: user?.emergencyContacts?.length || 0,
+      profileImage: user?.profileImage ? "Exists" : "None",
+      onboardingStatus
+    });
+    
+    Alert.alert(
+      "Debug Info", 
+      `Loading: ${loading}
+Token: ${token ? "Exists" : "None"}
+User: ${user ? "Exists" : "None"}
+Onboarding: ${user?.onboardingCompleted ? "Complete" : "Incomplete"}
+Emergency Contacts: ${user?.emergencyContacts?.length || 0}
+Profile Image: ${user?.profileImage ? "Exists" : "None"}
+Missing Steps: ${onboardingStatus.missingSteps.join(', ') || 'None'}`
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -84,32 +211,9 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>Sign in to your account</Text>
 
-          {/* Social Login Buttons (non-functional) */}
-          <TouchableOpacity
-            style={styles.socialButtonLight}
-            onPress={() => Alert.alert("Google login", "Google login triggered")}
-          >
-            <View style={styles.buttonContent}>
-              <Icon name="google" size={20} color="#000" />
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.socialButtonDark}
-            onPress={() => Alert.alert("Apple login", "Apple login triggered")}
-          >
-            <View style={styles.buttonContent}>
-              <Icon name="apple" size={20} color="#fff" />
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.socialButtonBlue}
-            onPress={() => Alert.alert("Facebook login", "Facebook login triggered")}
-          >
-            <View style={styles.buttonContent}>
-              <Icon name="facebook" size={20} color="#fff" />
-            </View>
+          {/* Debug button - keep for testing, remove in production */}
+          <TouchableOpacity onPress={debugTokenState} style={styles.debugButton}>
+            <Text style={styles.debugText}>Debug Auth State</Text>
           </TouchableOpacity>
 
           {/* Email Login Form */}
@@ -146,12 +250,46 @@ export default function LoginScreen({ navigation }) {
           </View>
 
           <TouchableOpacity
-            style={styles.signInButton}
+            style={[styles.signInButton, loggingIn && styles.disabledButton]}
             onPress={handleLogin}
             activeOpacity={0.8}
+            disabled={loggingIn}
           >
-            <Text style={styles.buttonText}>Sign In</Text>
+            <Text style={styles.buttonText}>
+              {loggingIn ? "Signing In..." : "Sign In"}
+            </Text>
           </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={styles.dividerContainer}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or continue with</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Social Login Buttons */}
+          <View style={styles.socialButtonsRow}>
+            <TouchableOpacity
+              style={styles.socialButtonGoogle}
+              onPress={() => promptAsync()} 
+              disabled={!request}
+            >
+              <View style={styles.buttonContent}>
+                <Icon name="google" size={20} color="#000" />
+                <Text style={styles.socialButtonText}>Google</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.socialButtonFacebook}
+              onPress={loginWithFacebook}
+            >
+              <View style={styles.buttonContent}>
+                <Icon name="facebook" size={20} color="#1877F2" />
+                <Text style={styles.socialButtonText}>Facebook</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.bottomLinksContainer}>
             <Text style={styles.CA1}>
@@ -174,19 +312,17 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
-
 const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#F9FAFB", 
   },
-
 
   topSection: {
     backgroundColor: "#3b82f6",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 60,
+    paddingVertical: 80,
     borderBottomLeftRadius: 120,
     borderBottomRightRadius: 120,
     elevation: 10,
@@ -213,7 +349,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
     marginHorizontal: 20,
-    marginTop: -40,
+    marginTop: -50,
     borderRadius: 16,
     padding: 24,
     paddingBottom: 50,
@@ -271,11 +407,28 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
   },
+  disabledButton: {
+    backgroundColor: "#9CA3AF",
+  },
   buttonText: {
     color: "#fff",
     fontSize: 17,
     fontWeight: "600",
     letterSpacing: 0.5,
+  },
+
+  // 🐛 Debug Button
+  debugButton: {
+    backgroundColor: "#F59E0B",
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 16,
+    alignItems: "center",
+  },
+  debugText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
   },
 
   // 🧠 Remember Me
@@ -291,9 +444,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
-
-  // 🌍 Social Buttons
-  socialButtonLight: {
+  
+  // Social buttons 
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  socialButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  socialButtonGoogle: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
@@ -301,39 +476,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 10,
     paddingVertical: 12,
-    paddingHorizontal: 20,
-    marginBottom: 12,
+    paddingHorizontal: 15,
     justifyContent: "center",
     elevation: Platform.OS === "android" ? 2 : 0,
   },
-  socialButtonDark: {
+  socialButtonFacebook: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#111",
+    backgroundColor: "#fff",
+    borderColor: "#E5E7EB",
+    borderWidth: 1,
     borderRadius: 10,
     paddingVertical: 12,
-    paddingHorizontal: 20,
-    marginBottom: 12,
+    paddingHorizontal: 15,
     justifyContent: "center",
     elevation: Platform.OS === "android" ? 2 : 0,
   },
-  socialButtonBlue: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1877F2",
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    marginBottom: 24,
-    justifyContent: "center",
-    elevation: Platform.OS === "android" ? 2 : 0,
+  socialButtonText: {
+    marginLeft: 8,
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#000', 
   },
   buttonContent: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
   },
-
+  
   // 🧭 Bottom Text Links
   bottomLinksContainer: {
     alignItems: "center",

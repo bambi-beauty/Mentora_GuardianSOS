@@ -91,7 +91,7 @@ export default function Email_Verification_Screen({ route, navigation }) {
     if (otp.length === 4) {
       setLoading(true);
       try {
-        const response = await fetch('https://thisprojectbackend1-1.onrender.com/api/auth/verify-otp', {
+        const response = await fetch('https://baroscopical-natosha-overrigid.ngrok-free.dev/api/auth/verify-otp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, otp }),

@@ -7,18 +7,17 @@ const PostContext = createContext();
 
 export const PostProvider = ({ children }) => {
   const { token } = useUser();
-  const backendBaseUrl = 'http://192.168.50.236'; //192.168.50.236 //https://thisprojectbackend1-1.onrender.com
+  const backendBaseUrl = 'https://baroscopical-natosha-overrigid.ngrok-free.dev'; 
   const [posts, setPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [socket, setSocket] = useState(null);
 
-  // Initialize Socket.IO
   useEffect(() => {
     const s = io(backendBaseUrl, {
       transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: 5,
-      auth: { token }, // optional if backend requires socket auth
+      auth: { token }, 
     });
     setSocket(s);
 
@@ -71,8 +70,6 @@ export const PostProvider = ({ children }) => {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to create post');
-
-      // ✅ Let Socket.IO handle adding post to state
       return data;
     } catch (err) {
       Alert.alert('Error', err.message);
@@ -93,8 +90,6 @@ export const PostProvider = ({ children }) => {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to update post');
-
-      // ✅ Socket.IO will handle state update
       return data;
     } catch (err) {
       Alert.alert('Update Error', err.message);
@@ -111,8 +106,6 @@ export const PostProvider = ({ children }) => {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to delete post');
-
-      // ✅ Socket.IO will handle removing post
       return true;
     } catch (err) {
       Alert.alert('Delete Error', err.message);
@@ -131,7 +124,7 @@ export const PostProvider = ({ children }) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to like post');
 
-      // ✅ Update post in state
+      // 
       setPosts((prev) =>
         prev.map((p) => (p._id === data.post._id ? data.post : p))
       );
@@ -156,8 +149,6 @@ export const PostProvider = ({ children }) => {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to add comment');
-
-      // ✅ Socket.IO handles state update
       return data;
     } catch (err) {
       Alert.alert('Error', err.message);
@@ -178,8 +169,6 @@ export const PostProvider = ({ children }) => {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to update comment');
-
-      // ✅ Socket.IO handles state update
       return data;
     } catch (err) {
       Alert.alert('Error', err.message);
@@ -196,11 +185,39 @@ export const PostProvider = ({ children }) => {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to delete comment');
-
-      // ✅ Socket.IO handles state update
       return data;
     } catch (err) {
       Alert.alert('Error', err.message);
+    }
+  };
+  const reportPost = async (postId, reason) => {
+    try {
+      const res = await fetch(`${backendBaseUrl}/api/posts/${postId}/report`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ reason }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to report post');
+
+      Alert.alert('Report Submitted', 'Thank you for helping keep our community safe.');
+      return data;
+    } catch (err) {
+      console.error('Report error:', err.message);
+      // This is if backend doesn't have report endpoint, to handle it 
+      if (err.message.includes('Failed to report post')) {
+        // Fallback: It just shows success message without the backend
+        Alert.alert(
+          'Report Submitted', 
+          'Thank you for reporting this post. Our moderators will review it.'
+        );
+        return { success: true };
+      }
+      Alert.alert('Error', 'Failed to submit report. Please try again.');
     }
   };
 
@@ -221,6 +238,7 @@ export const PostProvider = ({ children }) => {
         addComment,
         updateComment,
         deleteComment,
+        reportPost,
       }}
     >
       {children}

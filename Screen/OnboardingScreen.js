@@ -1,322 +1,496 @@
-import React, { useRef, useState } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Animated,
-  TextInput,
-  Dimensions,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native";
-import LottieView from "lottie-react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { useUser } from "../Users/useContext";
+  Alert,
+  ActivityIndicator,
+  Dimensions,
+} from 'react-native';
+import { useUser } from '../Users/useContext'; 
 
-const { width } = Dimensions.get("window");
-
-const slides = [
-  {
-    id: 1,
-    title: "Welcome to GuardianSOS",
-    description: "Your safety, our priority. Stay connected and protected 24/7.",
-    animation: require("../assets/Amimation1.gif"),
-    gradient: ["#3b82f6", "#60a5fa", "#93c5fd"],
-  },
-  {
-    id: 2,
-    title: "Instant Alerts",
-    description: "Send SOS alerts to your emergency contacts with one tap.",
-    // animation: require("../assets/animations/alert.json"),
-    gradient: ["#2563eb", "#4f46e5", "#818cf8"],
-  },
-  {
-    id: 3,
-    title: "Live Location Sharing",
-    description: "Share your real-time location with trusted friends or family.",
-    // animation: require("../assets/animations/location.json"),
-    gradient: ["#1e3a8a", "#3b82f6", "#60a5fa"],
-  },
-];
+const { width } = Dimensions.get('window');
 
 const OnboardingScreen = ({ navigation }) => {
-  const scrollX = useRef(new Animated.Value(0)).current;
-  const scrollRef = useRef();
-  const { completeOnboarding } = useUser();
-
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [formVisible, setFormVisible] = useState(false);
-  const [name, setName] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-
-  const handleScroll = (event) => {
-    const index = Math.round(event.nativeEvent.contentOffset.x / width);
-    setCurrentIndex(index);
-  };
-
-  const nextSlide = () => {
-    if (currentIndex < slides.length - 1) {
-      scrollRef.current.scrollTo({ x: (currentIndex + 1) * width, animated: true });
-    } else {
-      setFormVisible(true);
-    }
-  };
-
-  const skipOnboarding = () => setFormVisible(true);
-
-  const handleFinish = async () => {
-    if (!name.trim() || !phoneNumber.trim()) {
-      alert("Please enter your name and phone number.");
-      return;
-    }
-    await completeOnboarding({ name, phoneNumber });
-    navigation.reset({ index: 0, routes: [{ name: "Login" }] });
-  };
-
-  const progressWidth = scrollX.interpolate({
-    inputRange: [0, (slides.length - 1) * width],
-    outputRange: ["0%", "100%"],
-    extrapolate: "clamp",
+  const { 
+    user, 
+    getOnboardingStatus, 
+    hasCompletedOnboarding,
+    completeOnboardingStep 
+  } = useUser();
+  
+  const [currentStep, setCurrentStep] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [onboardingStatus, setOnboardingStatus] = useState({
+    completed: false,
+    missingSteps: [],
+    progress: 0,
+    steps: {}
   });
 
-  return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      {!formVisible ? (
-        <View style={{ flex: 1 }}>
-          {/* Skip Button */}
-          <TouchableOpacity style={styles.skipButton} onPress={skipOnboarding}>
-            <Text style={styles.skipText}>Skip</Text>
-          </TouchableOpacity>
+  // Check onboarding status when component mounts or user changes
+  useEffect(() => {
+    if (user) {
+      const status = getOnboardingStatus();
+      setOnboardingStatus(status);
+      console.log('📊 Onboarding Status:', status);
+      
+      // If already completed, navigate to main app
+      if (status.completed) {
+        console.log('✅ Onboarding already completed, navigating to main app');
+        navigation.replace('MainApp');
+      }
+    }
+  }, [user, getOnboardingStatus]);
 
-          <Animated.ScrollView
-            ref={scrollRef}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-              { useNativeDriver: false, listener: handleScroll }
+  // Update current step based on missing steps
+  useEffect(() => {
+    if (onboardingStatus.missingSteps.length > 0) {
+      const stepOrder = ['basic_info', 'emergency_contacts', 'profile_image'];
+      const nextStep = stepOrder.find(step => 
+        onboardingStatus.missingSteps.includes(step)
+      );
+      
+      if (nextStep) {
+        const stepIndex = stepOrder.indexOf(nextStep);
+        setCurrentStep(stepIndex);
+      }
+    }
+  }, [onboardingStatus.missingSteps]);
+
+  const steps = [
+    {
+      id: 'basic_info',
+      title: 'Basic Information',
+      description: 'Complete your profile information',
+      screen: 'ProfileSetup', // Your basic info screen name
+      required: true
+    },
+    {
+      id: 'emergency_contacts',
+      title: 'Emergency Contacts',
+      description: 'Add your emergency contacts for safety',
+      screen: 'Adding_Emergency_Contacts', // Your emergency contacts screen name
+      required: true
+    },
+    {
+      id: 'profile_image',
+      title: 'Profile Photo',
+      description: 'Upload a profile picture',
+      screen: 'Add_image', // Your profile image screen name
+      required: true
+    }
+  ];
+
+  const handleStepPress = async (step) => {
+    try {
+      setLoading(true);
+      
+      // Navigate to the appropriate screen
+      navigation.navigate(step.screen, {
+        onComplete: () => handleStepComplete(step.id)
+      });
+      
+    } catch (error) {
+      console.error('❌ Error navigating to step:', error);
+      Alert.alert('Error', 'Failed to navigate to step');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStepComplete = async (stepId) => {
+    try {
+      console.log(`✅ Step ${stepId} completed`);
+      
+      // Refresh onboarding status
+      const newStatus = getOnboardingStatus();
+      setOnboardingStatus(newStatus);
+      
+      // Check if all steps are completed
+      if (newStatus.completed) {
+        console.log('🎉 All onboarding steps completed!');
+        Alert.alert(
+          'Welcome!',
+          'Your profile setup is complete. Welcome to the app!',
+          [
+            {
+              text: 'Get Started',
+              onPress: () => navigation.replace('MainApp')
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('❌ Error handling step completion:', error);
+    }
+  };
+
+  const handleSkipOnboarding = async () => {
+    Alert.alert(
+      'Skip Onboarding?',
+      'Are you sure you want to skip onboarding? You can complete it later in settings.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Skip',
+          style: 'destructive',
+          onPress: () => navigation.replace('MainApp')
+        }
+      ]
+    );
+  };
+
+  const getStepStatus = (stepId) => {
+    return onboardingStatus.steps[stepId] || false;
+  };
+
+  const renderStep = (step, index) => {
+    const isCompleted = getStepStatus(step.id);
+    const isCurrent = currentStep === index;
+    const isAccessible = currentStep >= index || isCompleted;
+
+    return (
+      <TouchableOpacity
+        key={step.id}
+        style={[
+          styles.stepContainer,
+          isCompleted && styles.stepCompleted,
+          isCurrent && styles.stepCurrent,
+          !isAccessible && styles.stepDisabled
+        ]}
+        onPress={() => isAccessible && handleStepPress(step)}
+        disabled={!isAccessible || loading}
+      >
+        <View style={styles.stepHeader}>
+          <View style={[
+            styles.stepIndicator,
+            isCompleted && styles.stepIndicatorCompleted,
+            isCurrent && styles.stepIndicatorCurrent
+          ]}>
+            {isCompleted ? (
+              <Text style={styles.stepIndicatorText}>✓</Text>
+            ) : (
+              <Text style={styles.stepIndicatorText}>{index + 1}</Text>
             )}
-            scrollEventThrottle={16}
-          >
-            {slides.map((slide) => (
-              <LinearGradient key={slide.id} colors={slide.gradient} style={styles.slide}>
-                {slide.animation && (
-                  <LottieView
-                    source={slide.animation}
-                    autoPlay
-                    loop
-                    style={styles.lottie}
-                  />
-                )}
-                <Text style={styles.title}>{slide.title}</Text>
-                <Text style={styles.description}>{slide.description}</Text>
-              </LinearGradient>
-            ))}
-          </Animated.ScrollView>
-
-          {/* Pagination Dots */}
-          <View style={styles.pagination}>
-            {slides.map((_, i) => {
-              const inputRange = [(i - 1) * width, i * width, (i + 1) * width];
-              const dotWidth = scrollX.interpolate({
-                inputRange,
-                outputRange: [8, 20, 8],
-                extrapolate: "clamp",
-              });
-              const opacity = scrollX.interpolate({
-                inputRange,
-                outputRange: [0.3, 1, 0.3],
-                extrapolate: "clamp",
-              });
-              return (
-                <Animated.View
-                  key={i}
-                  style={[styles.dot, { width: dotWidth, opacity }]}
-                />
-              );
-            })}
           </View>
-
-          {/* Progress Bar */}
-          <View style={styles.progressBarContainer}>
-            <Animated.View style={[styles.progressBar, { width: progressWidth }]} />
-          </View>
-
-          {/* Next Button */}
-          <TouchableOpacity style={styles.nextButton} onPress={nextSlide}>
-            <Text style={styles.nextText}>
-              {currentIndex === slides.length - 1 ? "Get Started" : "Next"}
+          
+          <View style={styles.stepInfo}>
+            <Text style={[
+              styles.stepTitle,
+              isCompleted && styles.stepTitleCompleted,
+              !isAccessible && styles.stepTitleDisabled
+            ]}>
+              {step.title}
             </Text>
-          </TouchableOpacity>
+            <Text style={[
+              styles.stepDescription,
+              !isAccessible && styles.stepDescriptionDisabled
+            ]}>
+              {step.description}
+            </Text>
+          </View>
+          
+          {isCompleted && (
+            <Text style={styles.completedText}>Completed</Text>
+          )}
         </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.formContainer}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Text style={styles.formTitle}>Let’s set up your profile</Text>
-          <Text style={styles.formSubtitle}>
-            We’ll need some basic info to personalize your experience.
+        
+        {isCurrent && !isCompleted && (
+          <Text style={styles.currentStepText}>
+            Tap to complete this step
           </Text>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
-          <Text style={styles.label}>Full Name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your full name"
-            value={name}
-            onChangeText={setName}
-          />
+  if (!user) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Loading user data...</Text>
+      </View>
+    );
+  }
 
-          <Text style={styles.label}>Phone Number</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your phone number"
-            keyboardType="phone-pad"
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
-          />
+  return (
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Complete Your Profile</Text>
+          <Text style={styles.subtitle}>
+            Finish setting up your account to get the most out of the app
+          </Text>
+          
+          {/* Progress Bar */}
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBackground}>
+              <View 
+                style={[
+                  styles.progressFill,
+                  { width: `${onboardingStatus.progress}%` }
+                ]} 
+              />
+            </View>
+            <Text style={styles.progressText}>
+              {onboardingStatus.progress}% Complete
+            </Text>
+          </View>
+        </View>
 
-          <TouchableOpacity style={styles.finishButton} onPress={handleFinish}>
-            <Text style={styles.finishText}>Finish Setup</Text>
+        {/* Steps List */}
+        <View style={styles.stepsList}>
+          {steps.map((step, index) => renderStep(step, index))}
+        </View>
+
+        {/* Completion Status */}
+        {onboardingStatus.completed && (
+          <View style={styles.completionContainer}>
+            <Text style={styles.completionTitle}>🎉 Setup Complete!</Text>
+            <Text style={styles.completionText}>
+              Your profile is fully set up. You're ready to use all features of the app.
+            </Text>
+            <TouchableOpacity
+              style={styles.getStartedButton}
+              onPress={() => navigation.replace('MainApp')}
+            >
+              <Text style={styles.getStartedButtonText}>Get Started</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Footer */}
+      {!onboardingStatus.completed && (
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={styles.skipButton}
+            onPress={handleSkipOnboarding}
+            disabled={loading}
+          >
+            <Text style={styles.skipButtonText}>Skip for now</Text>
           </TouchableOpacity>
-        </ScrollView>
+          
+          <Text style={styles.footerNote}>
+            {onboardingStatus.missingSteps.length} steps remaining
+          </Text>
+        </View>
       )}
-    </KeyboardAvoidingView>
+      
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#FFFFFF" />
+        </View>
+      )}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  skipButton: {
-    position: "absolute",
-    top: 50,
-    right: 20,
-    zIndex: 10,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  skipText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  slide: {
-    width,
+  container: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: '#F8F9FA',
+  },
+  scrollContent: {
+    flexGrow: 1,
     padding: 20,
   },
-  lottie: {
-    width: width * 0.7,
-    height: width * 0.7,
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#6C757D',
+  },
+  header: {
+    alignItems: 'center',
     marginBottom: 30,
   },
   title: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 10,
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#212529',
+    textAlign: 'center',
+    marginBottom: 8,
   },
-  description: {
+  subtitle: {
     fontSize: 16,
-    color: "#f1f5f9",
-    textAlign: "center",
-    paddingHorizontal: 30,
+    color: '#6C757D',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 22,
   },
-  pagination: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginVertical: 20,
+  progressContainer: {
+    width: '100%',
+    alignItems: 'center',
   },
-  dot: {
+  progressBackground: {
+    width: '100%',
     height: 8,
+    backgroundColor: '#E9ECEF',
     borderRadius: 4,
-    backgroundColor: "#fff",
-    marginHorizontal: 5,
+    overflow: 'hidden',
+    marginBottom: 8,
   },
-  progressBarContainer: {
-    height: 4,
-    width: "80%",
-    backgroundColor: "rgba(255,255,255,0.3)",
-    alignSelf: "center",
-    borderRadius: 2,
-    overflow: "hidden",
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#007AFF',
+    borderRadius: 4,
   },
-  progressBar: {
-    height: "100%",
-    backgroundColor: "#fff",
-  },
-  nextButton: {
-    backgroundColor: "#fff",
-    paddingVertical: 14,
-    alignSelf: "center",
-    paddingHorizontal: 50,
-    borderRadius: 30,
-    marginBottom: 50,
-    marginTop: 20,
-  },
-  nextText: {
-    color: "#2563eb",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  formContainer: {
-    flexGrow: 1,
-    padding: 24,
-    justifyContent: "center",
-    backgroundColor: "#fff",
-  },
-  formTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#111",
-    textAlign: "center",
-    marginBottom: 10,
-  },
-  formSubtitle: {
+  progressText: {
     fontSize: 14,
-    color: "#555",
-    textAlign: "center",
-    marginBottom: 24,
+    color: '#6C757D',
+    fontWeight: '500',
   },
-  label: {
-    color: "#333",
-    marginBottom: 6,
-    marginTop: 10,
+  stepsList: {
+    marginBottom: 20,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 10,
-    padding: 12,
-    color: "#000",
-    marginBottom: 16,
+  stepContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#E9ECEF',
   },
-  finishButton: {
-    backgroundColor: "#3b82f6",
-    padding: 14,
-    borderRadius: 10,
-    alignItems: "center",
+  stepCompleted: {
+    borderColor: '#28A745',
+    backgroundColor: '#F8FFF9',
+  },
+  stepCurrent: {
+    borderColor: '#007AFF',
+    backgroundColor: '#F0F8FF',
+  },
+  stepDisabled: {
+    opacity: 0.6,
+  },
+  stepHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stepIndicator: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#6C757D',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  stepIndicatorCompleted: {
+    backgroundColor: '#28A745',
+  },
+  stepIndicatorCurrent: {
+    backgroundColor: '#007AFF',
+  },
+  stepIndicatorText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  stepInfo: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#212529',
+    marginBottom: 4,
+  },
+  stepTitleCompleted: {
+    color: '#28A745',
+  },
+  stepTitleDisabled: {
+    color: '#6C757D',
+  },
+  stepDescription: {
+    fontSize: 14,
+    color: '#6C757D',
+    lineHeight: 18,
+  },
+  stepDescriptionDisabled: {
+    color: '#ADB5BD',
+  },
+  completedText: {
+    color: '#28A745',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  currentStepText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#007AFF',
+    fontStyle: 'italic',
+  },
+  completionContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#28A745',
     marginTop: 20,
   },
-  finishText: {
-    color: "#fff",
+  completionTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#28A745',
+    marginBottom: 8,
+  },
+  completionText: {
     fontSize: 16,
-    fontWeight: "600",
+    color: '#6C757D',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  getStartedButton: {
+    backgroundColor: '#28A745',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  getStartedButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  footer: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E9ECEF',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+  },
+  skipButton: {
+    paddingVertical: 8,
+  },
+  skipButtonText: {
+    color: '#6C757D',
+    fontSize: 16,
+  },
+  footerNote: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#ADB5BD',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
 export default OnboardingScreen;
-
-
-//https://lottiefiles.com/free-animation/login-4rLqu2p6Td
