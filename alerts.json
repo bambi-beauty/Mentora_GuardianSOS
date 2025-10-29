@@ -1,0 +1,6 @@
+[
+  { "id": "1", "title": "Nearby alert: Suspicious person reported 500m away", "type": "alert" },
+  { "id": "2", "title": "Tip: Avoid walking alone in poorly lit areas", "type": "tip" },
+  { "id": "3", "title": "Emergency check-in reminder: Send location to your guardian", "type": "reminder" },
+  { "id": "4", "title": "Alert: Recent GBV report in your vicinity", "type": "alert" }
+]
