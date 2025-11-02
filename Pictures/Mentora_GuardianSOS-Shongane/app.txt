@@ -1,0 +1,58 @@
+
+
+
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  loadingText: {
+    fontSize: 18,
+    color: '#2A5B8C',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#2A5B8C',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+  },
+  logo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logoText: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginLeft: 10,
+  },
+  headerActions: {
+    flexDirection: 'row',
+  },
+  headerIcon: {
+    marginLeft: 15,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  userWelcome: {
+    backgroundColor: '#2A5B8C',
+    padding: 20,
+  },
+  welcomeTitle: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  welcomeText: {
+    color: 'rgba(255,255

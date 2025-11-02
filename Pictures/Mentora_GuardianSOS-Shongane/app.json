@@ -1,0 +1,82 @@
+{
+  "expo": {
+    "name": "GuardianSOS",
+    "slug": "guardiansos",
+    "scheme": "guardiansos",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/appIcon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "bundleIdentifier": "com.guardiansos.app",
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyArR8lggtsFGEz6FOyMxPB3YzshMb-3q10"
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "GuardianSOS uses your location to share your position for safety.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "GuardianSOS needs continuous access to your location, even in the background, to track and share your location for safety purposes.",
+        "NSMicrophoneUsageDescription": "GuardianSOS uses microphone access for audio features and emergency alerts. Your safety is our priority.",
+        "UIBackgroundModes": ["location", "audio"],
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": ["fb1114350687129940"]
+          }
+        ]
+      }
+    },
+    "android": {
+      "package": "com.guardiansos.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyArR8lggtsFGEz6FOyMxPB3YzshMb-3q10"
+        }
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "isAndroidBackgroundLocationEnabled": true,
+          "isIosBackgroundLocationEnabled": true
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow GuardianSOS to access your microphone for audio features",
+          "microphonePermissionRationale": "This app needs microphone access for emergency audio alerts and safety features."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0337eb36-100e-497b-ac1e-0c07cdd3ef0b"
+      }
+    }
+  }
+}
