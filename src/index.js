@@ -63,13 +63,11 @@ app.use('/api/feedback', feedbackRoute);
 app.use('/api/incidents', incidentRoute);
 app.use('/api/groups',groupRoute)
 
-// ✅ Global Error Handler
 app.use((err, req, res, next) => {
   console.error('Global error handler:', err.stack);
   res.status(500).json({ message: err.message || 'Something went wrong!' });
 });
 
-// ✅ Socket.IO event handling
 io.on('connection', (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
 
@@ -78,7 +76,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// ✅ Server start
 const startServer = async () => {
   try {
     await connectDB();

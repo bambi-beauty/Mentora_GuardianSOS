@@ -4,12 +4,14 @@ import mongoose from 'mongoose';
 const messageSchema = new mongoose.Schema({
   user: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User',       // Reference to User model
+    ref: 'User',       
     required: true 
   },
   text: { 
     type: String, 
-    required: true 
+    required: true,
+    trim: true,
+    maxlength: 1000
   },
   time: { 
     type: Date, 
@@ -22,15 +24,19 @@ const messageSchema = new mongoose.Schema({
   }
 }, { _id: true });  
 
-
 const groupSchema = new mongoose.Schema({
   name: { 
     type: String, 
     required: true, 
-    unique: true 
+    unique: true,
+    trim: true,
+    minlength: 2,
+    maxlength: 50
   },
   description: { 
-    type: String 
+    type: String,
+    trim: true,
+    maxlength: 500 
   },
   category: { 
     type: String, 
@@ -43,7 +49,7 @@ const groupSchema = new mongoose.Schema({
   },
   members: [{ 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User'  // List of users who joined this group
+    ref: 'User'
   }],
   membersOnline: {
     type: Number,
@@ -62,6 +68,12 @@ const groupSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+groupSchema.virtual('memberCount').get(function() {
+  return this.members.length;
+});
+
+groupSchema.set('toJSON', { virtuals: true });
 
 const Group = mongoose.model('Group', groupSchema);
 

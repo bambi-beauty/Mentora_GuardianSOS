@@ -1,24 +1,11 @@
-import Contact from '../model/contactsModel.js';  // Adjust path as needed
-
+import Contact from '../model/contactsModel.js';
 
 export const addContacts = async (req, res) => {
   const { userId, contacts } = req.body;
 
-  // console.log("🔍 Raw req.body:", req.body);
-  // console.log("👤 userId:", userId);
-  // console.log("📇 contacts:", contacts);
-  // console.log("✅ contacts isArray:", Array.isArray(contacts));
-  // console.log("🔢 contacts length:", contacts?.length);
-
-  if (!userId || !Array.isArray(contacts) || contacts.length < 2) {
+  if (!userId || !Array.isArray(contacts) || contacts.length === 0) {
     return res.status(400).json({
-      message: 'Please provide userId and at least 2 contacts',
-      debug: {
-        userId,
-        contacts,
-        isArray: Array.isArray(contacts),
-        count: contacts?.length,
-      },
+      message: 'Please provide userId and at least 1 contact',
     });
   }
 
@@ -31,13 +18,12 @@ export const addContacts = async (req, res) => {
         user: userId,
         name: contact.name.trim(),
         phoneNumber: contact.phoneNumber.trim(),
-        relationship: contact.relationship?.trim() || '',
+        relationship: contact.relationship?.trim() || 'Other',
+        isEmergency: contact.isEmergency || false
       };
     });
 
     const savedContacts = await Contact.insertMany(contactsToInsert);
-
-    // console.log(`✅ Saved ${savedContacts.length} contacts for user ${userId}`);
 
     res.status(201).json({
       message: 'Contacts saved successfully',
@@ -46,6 +32,40 @@ export const addContacts = async (req, res) => {
   } catch (error) {
     console.error('❌ Error saving contacts:', error.message);
     res.status(500).json({ message: 'Failed to save contacts', error: error.message });
+  }
+};
+
+// ✅ ADD THIS - Single contact creation (for your frontend)
+export const addSingleContact = async (req, res) => {
+  const { userId } = req.params;
+  const contactData = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ message: 'User ID is required' });
+  }
+
+  try {
+    if (!contactData.name || !contactData.phoneNumber) {
+      return res.status(400).json({ message: 'Name and phone number are required' });
+    }
+
+    const contact = new Contact({
+      user: userId,
+      name: contactData.name.trim(),
+      phoneNumber: contactData.phoneNumber.trim(),
+      relationship: contactData.relationship?.trim() || 'Other',
+      isEmergency: contactData.isEmergency || false
+    });
+
+    const savedContact = await contact.save();
+
+    res.status(201).json({
+      message: 'Contact saved successfully',
+      contact: savedContact,
+    });
+  } catch (error) {
+    console.error('❌ Error saving contact:', error.message);
+    res.status(500).json({ message: 'Failed to save contact', error: error.message });
   }
 };
 
@@ -61,42 +81,52 @@ export const getContactsByUser = async (req, res) => {
   }
 };
 
+// ✅ FIXED - Update contact
 export const updateContact = async (req, res) => {
   try {
-    const { contactId } = req.params;
-    const userId = req.user._id;
+    const { userId, contactId } = req.params;
     const updates = req.body;
 
-    const contact = await EmergencyContact.findOne({ _id: contactId, user: userId });
+    // Find contact by ID and user ID to ensure ownership
+    const contact = await Contact.findOne({ _id: contactId, user: userId });
 
     if (!contact) {
       return res.status(404).json({ message: 'Contact not found' });
     }
 
-    Object.assign(contact, updates);
+    // Update contact fields
+    Object.keys(updates).forEach(key => {
+      if (updates[key] !== undefined) {
+        contact[key] = updates[key];
+      }
+    });
+
     await contact.save();
 
-    return res.json(contact);
+    res.json({
+      message: 'Contact updated successfully',
+      contact: contact
+    });
   } catch (err) {
     console.error('Update contact error:', err);
-    return res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
+// ✅ FIXED - Delete contact
 export const deleteContact = async (req, res) => {
   try {
-    const { contactId } = req.params;
-    const userId = req.user._id;
+    const { userId, contactId } = req.params;
 
-    const contact = await EmergencyContact.findOneAndDelete({ _id: contactId, user: userId });
+    const contact = await Contact.findOneAndDelete({ _id: contactId, user: userId });
 
     if (!contact) {
       return res.status(404).json({ message: 'Contact not found' });
     }
 
-    return res.json({ message: 'Contact deleted successfully' });
+    res.json({ message: 'Contact deleted successfully' });
   } catch (err) {
     console.error('Delete contact error:', err);
-    return res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error' });
   }
 };

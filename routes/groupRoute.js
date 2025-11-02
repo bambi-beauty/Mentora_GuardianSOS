@@ -5,29 +5,37 @@ import {
   getGroupById,
   joinGroup,
   leaveGroup,
-  addMessage
+  addMessage,
+  getUserGroups
 } from '../controller/groupController.js';
 
-import { protect } from '../middleware/authMiddleware.js'; 
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Create a new group (protected)
+// Debug routes
+router.get('/debug', (req, res) => {
+  console.log('🔍 Debug route hit');
+  res.json({ 
+    message: 'API is working!',
+    timestamp: new Date().toISOString()
+  });
+});
+
+router.get('/debug/auth', protect, (req, res) => {
+  console.log('🔍 Auth debug route hit - User:', req.user);
+  res.json({ 
+    message: 'Authentication is working!',
+    user: req.user ? { id: req.user._id, email: req.user.email } : 'No user'
+  });
+});
+
 router.post('/', protect, createGroup);
-
-// Get all groups (optional category filter)
 router.get('/', protect, getGroups);
-
-// Get group by ID (with messages)
+router.get('/user/my-groups', protect, getUserGroups);
 router.get('/:id', protect, getGroupById);
-
-// Join a group
 router.post('/:id/join', protect, joinGroup);
-
-// Leave a group
 router.post('/:id/leave', protect, leaveGroup);
-
-// Add a message to group chat
 router.post('/:id/messages', protect, addMessage);
 
 export default router;
