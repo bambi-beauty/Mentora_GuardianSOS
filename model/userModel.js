@@ -40,15 +40,21 @@ const userSchema = new mongoose.Schema({
     type: Date,
   },
   onboardingCompleted: {
-  type: Boolean,
-  default: false, 
-},
-
+    type: Boolean,
+    default: false, 
+  },
   location: {
     country: { type: String, required: true },
     state: { type: String },
     city: { type: String },
     street: { type: String },
+  },
+  // ADD THESE NEW FIELDS FOR PASSWORD RESET
+  resetPasswordToken: {
+    type: String,
+  },
+  resetPasswordExpires: {
+    type: Date,
   },
 
 }, { timestamps: true });

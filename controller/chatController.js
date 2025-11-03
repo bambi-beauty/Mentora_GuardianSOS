@@ -16,8 +16,8 @@ const CONFIG = {
     CLEANUP_OLDER_THAN_DAYS: 30
   },
   API: {
-    TIMEOUT_MS: 10000,
-    RETRY_ATTEMPTS: 2
+    TIMEOUT_MS: 15000, // Increased timeout
+    RETRY_ATTEMPTS: 3   // Increased retry attempts
   },
   SAFETY: {
     ANALYSIS_RADIUS_KM: 5,
@@ -37,6 +37,11 @@ const CONFIG = {
       ALTERNATIVES: true,
       AVOID: ['tolls', 'ferries']
     }
+  },
+  RESPONSE: {
+    MIN_LENGTH: 50,      // Minimum response length
+    TARGET_LENGTH: 300,  // Target response length
+    MAX_RETRIES: 2       // Retry generation if response is too short
   }
 };
 
@@ -730,6 +735,386 @@ async function cleanupOldMessages(userId) {
   }
 }
 
+// Enhanced function to generate AI response with retry logic for better responses
+async function generateAIResponse(chat, systemPrompt, maxRetries = CONFIG.RESPONSE.MAX_RETRIES) {
+  let responseText = '';
+  let attempts = 0;
+  
+  while (attempts < maxRetries) {
+    attempts++;
+    try {
+      console.log(`🤖 Generating AI response (attempt ${attempts}/${maxRetries})`);
+      
+      const result = await chat.sendMessage(systemPrompt);
+
+      // IMPROVED RESPONSE HANDLING WITH VALIDATION
+      console.log('🔍 Full Gemini result structure:', JSON.stringify({
+        hasResponse: !!result.response,
+        responseType: typeof result.response,
+        responseKeys: result.response ? Object.keys(result.response) : 'no response',
+        hasText: result.response ? typeof result.response.text : 'no response'
+      }, null, 2));
+
+      if (result && result.response && typeof result.response.text === 'function') {
+        responseText = result.response.text() || '';
+      } else {
+        console.warn('⚠️ Unexpected response structure:', result);
+        responseText = "I apologize, but I'm having trouble processing the response.";
+      }
+      
+      // Additional validation
+      if (typeof responseText !== 'string') {
+        console.warn('⚠️ Response text is not a string:', typeof responseText);
+        responseText = String(responseText || '');
+      }
+      
+      // Check response length and quality
+      const responseLength = responseText.trim().length;
+      console.log(`📏 Response length: ${responseLength} characters`);
+      
+      if (!responseText.trim()) {
+        console.warn('⚠️ Empty response text after processing');
+        responseText = "I apologize, but I couldn't generate a response. Please try again.";
+      } else if (responseLength < CONFIG.RESPONSE.MIN_LENGTH && attempts < maxRetries) {
+        console.warn(`⚠️ Response too short (${responseLength} chars), retrying...`);
+        continue;
+      } else {
+        console.log('✅ Response generated successfully');
+        break;
+      }
+      
+    } catch (responseError) {
+      console.error(`❌ Error processing Gemini response (attempt ${attempts}):`, responseError);
+      if (attempts === maxRetries) {
+        responseText = "I encountered an issue processing your request. Please try again.";
+      }
+    }
+  }
+
+  // Final validation before returning
+  if (!responseText || responseText.trim() === '') {
+    responseText = "I apologize, but I couldn't generate a proper response. Please try your question again.";
+  }
+
+  return responseText;
+}
+
+// Enhanced system prompts for better responses
+const getEnhancedSystemPrompt = (message, safetyContext, isSafetyRequest, safetyCategory, analysisCity) => {
+  if (isSafetyRequest) {
+    const cityContext = analysisCity ? ` focusing on ${analysisCity}` : "";
+    
+    switch (safetyCategory) {
+      case 'ROUTE_COMPARISON':
+        return `
+USER_QUERY: "${message}"
+${safetyContext}
+
+You are a comprehensive Route Safety Analysis Assistant. The user wants to compare MULTIPLE ROUTES or DESTINATIONS for safety.
+
+**CRITICAL: Provide EXTREMELY DETAILED responses with comprehensive analysis**
+
+🏆 **OVERALL SAFEST RECOMMENDATION**
+- Clearly state which destination/route is safest overall
+- Provide detailed comparison of key safety metrics
+- Explain why this option is recommended
+
+📊 **DETAILED ROUTE SAFETY COMPARISON**
+For EACH destination/route analyzed:
+- **Safety Score Breakdown** (0-100 with explanation)
+- **Risk Level Analysis** (LOW/MODERATE/HIGH/VERY_HIGH with specific reasons)
+- **Incident Analysis**: Number and types of incidents along route
+- **High-Risk Areas**: Specific locations to avoid with details
+- **Travel Metrics**: Time, distance, and efficiency factors
+- **Step-by-Step Safety**: Analysis of each major route segment
+
+🛡️ **COMPREHENSIVE SAFETY BREAKDOWN BY ROUTE**
+- Detailed analysis of safety challenges for each route
+- Specific high-risk areas identified with locations
+- Incident types encountered and their implications
+- Time-of-day considerations for each route
+- Weather and environmental factors if relevant
+
+🚨 **ACTIONABLE SAFETY RECOMMENDATIONS**
+- **Primary Recommendation**: Safest route with detailed justification
+- **Alternative Options**: Other viable routes with pros/cons
+- **Time-Specific Advice**: Best/worst times to travel each route
+- **Emergency Preparedness**: Specific steps for each route
+- **Communication Plan**: Who to notify and when
+
+📍 **DESTINATION SAFETY OVERVIEW**
+- **Safety at Each Destination**: Detailed area assessment
+- **Local Risks**: Specific risks unique to each location
+- **Safe Zones**: Recommended safe areas at each destination
+- **Emergency Resources**: Local contacts and facilities
+
+**RESPONSE REQUIREMENTS:**
+- Minimum 5-7 key points for each major section
+- Use specific data from incident analysis when available
+- Provide practical, actionable advice
+- Include both immediate and preventative measures
+- Use clear headings and bullet points for readability
+- Engage the user with follow-up questions
+
+Provide comprehensive, data-driven analysis to help the user make informed safety decisions.
+`;
+
+      case 'SAFE_ROUTE':
+        return `
+USER_QUERY: "${message}"
+${safetyContext}
+
+You are a comprehensive Safety Analysis Assistant. The user is asking for SAFE ROUTE guidance${cityContext}.
+
+**CRITICAL: Provide EXTREMELY DETAILED route safety analysis**
+
+🗺️ **COMPREHENSIVE ROUTE SAFETY ASSESSMENT${cityContext ? ` IN ${analysisCity.toUpperCase()}` : ''}**
+
+📍 **CURRENT LOCATION SAFETY ANALYSIS**
+- Detailed safety assessment of starting point
+- Recent incident history in immediate area
+- Specific risks and safety measures for current location
+- Emergency resources near starting point
+
+🎯 **DESTINATION SAFETY ANALYSIS**
+- Comprehensive safety assessment of destination
+- Area-specific risks and considerations
+- Safe zones and areas to avoid at destination
+- Local emergency contacts and facilities
+
+🚶 **DETAILED ROUTE RECOMMENDATIONS**
+- **Primary Route**: Safest path with step-by-step guidance
+- **Alternative Routes**: 2-3 backup options with comparisons
+- **Risk Mitigation**: Specific strategies for each route segment
+- **Navigation Tips**: Landmarks and verification points
+
+⚠️ **COMPREHENSIVE RISK ANALYSIS${cityContext ? ` FOR ${analysisCity.toUpperCase()}` : ''}**
+- **Known Incident Hotspots**: Specific locations and times
+- **Time-Dependent Risks**: How safety changes throughout day
+- **Environmental Factors**: Lighting, visibility, terrain issues
+- **Social Factors**: Crowd levels, neighborhood characteristics
+
+🛡️ **TRAVEL SAFETY PROTOCOLS**
+- **Transportation Safety**: Vehicle/pedestrian specific advice
+- **Communication Plan**: Who to update and when
+- **Emergency Procedures**: Step-by-step emergency response
+- **Safety Equipment**: Recommended tools and apps
+
+📱 **REAL-TIME SAFETY MONITORING**
+- How to monitor safety during travel
+- Warning signs to watch for
+- When to alter route or seek help
+- Emergency contact procedures
+
+**RESPONSE REQUIREMENTS:**
+- Provide minimum 4-6 detailed points for each section
+- Include specific, actionable advice
+- Reference incident data when available
+- Consider time, weather, and personal factors
+- Offer multiple contingency plans
+
+Provide thorough, practical route guidance that prioritizes safety above all else.
+`;
+
+      case 'CURRENT_SAFETY':
+        return `
+USER_QUERY: "${message}"
+${safetyContext}
+
+You are a comprehensive Safety Analysis Assistant. The user is asking about their CURRENT LOCATION SAFETY${cityContext}.
+
+**CRITICAL: Provide EXTREMELY DETAILED safety assessment**
+
+🛡️ **COMPREHENSIVE SAFETY ASSESSMENT**: [SAFE/MODERATELY_SAFE/CAUTION_ADVISED/HIGH_RISK]
+
+📍 **DETAILED LOCATION ANALYSIS${cityContext ? ` - ${analysisCity.toUpperCase()}` : ''}**
+- **Area Safety Overview**: Comprehensive analysis of recent safety trends
+- **Incident Patterns**: Types and frequency of recent incidents
+- **Time-Based Risks**: How safety varies throughout day/night
+- **Environmental Factors**: Lighting, visibility, accessibility issues
+- **Community Safety**: Local initiatives and watch programs
+
+📊 **IN-DEPTH INCIDENT ANALYSIS**
+- **Recent Incident Summary**: Detailed breakdown of nearby incidents
+- **Incident Types**: Categorization and risk levels of each type
+- **Geographic Distribution**: Hotspots and safe zones in area
+- **Temporal Patterns**: When incidents are most/least likely
+- **Trend Analysis**: Improving or worsening safety trends
+
+🚨 **IMMEDIATE SAFETY MEASURES**
+- **Urgent Actions**: 3-5 specific safety measures to implement now
+- **Area Avoidance**: Specific locations and routes to avoid
+- **Emergency Preparedness**: Immediate contact and escape planning
+- **Personal Security**: Specific protective measures for current location
+
+💡 **PROACTIVE SAFETY STRATEGIES**
+- **Daily Safety Practices**: 5-7 routines for ongoing safety
+- **Environmental Awareness**: How to assess and use surroundings
+- **Communication Protocols**: Who to contact and when
+- **Technology Tools**: Safety apps and devices to use
+
+🏠 **LOCATION-SPECIFIC SECURITY${cityContext ? ` FOR ${analysisCity.toUpperCase()}` : ''}**
+- **Home/Work Security**: Specific measures for current location type
+- **Neighborhood Resources**: Local safety contacts and facilities
+- **Community Engagement**: How to connect with local safety networks
+- **Infrastructure Safety**: Public transportation, lighting, etc.
+
+**RESPONSE REQUIREMENTS:**
+- Provide 5-8 detailed points for each major section
+- Use specific incident data when available
+- Offer both immediate and long-term strategies
+- Include practical, actionable advice
+- Consider personal circumstances and preferences
+
+Base your response strictly on the provided incident data${cityContext}. If no location data is available, provide comprehensive general safety guidance while politely asking for location specifics.
+`;
+
+      case 'EMERGENCY_TIPS':
+        return `
+USER_QUERY: "${message}"
+${safetyContext}
+
+You are a comprehensive Safety Analysis Assistant. The user is asking for EMERGENCY TIPS and SAFETY GUIDANCE${cityContext}.
+
+**CRITICAL: Provide EXTREMELY DETAILED emergency preparedness information**
+
+🚨 **COMPREHENSIVE EMERGENCY PREPAREDNESS${cityContext ? ` FOR ${analysisCity.toUpperCase()}` : ''}**
+
+📱 **IMMEDIATE EMERGENCY RESPONSE PROTOCOLS**
+- **Emergency Contact List**: Specific numbers and when to use each
+- **Quick Escape Planning**: Step-by-step evacuation procedures
+- **Communication Strategies**: How to communicate during emergencies
+- **Shelter-in-Place Procedures**: When and how to secure location
+- **First Response Actions**: What to do in first 5 minutes of emergency
+
+🛡️ **DETAILED PERSONAL SAFETY MEASURES**
+- **Situational Awareness**: 7-10 specific techniques for different environments
+- **Personal Security Practices**: Physical and digital safety measures
+- **Risk Avoidance Strategies**: How to identify and avoid dangerous situations
+- **Self-Defense Preparedness**: Legal and practical considerations
+- **Property Security**: Securing home, vehicle, and personal items
+
+🏠 **LOCATION-SPECIFIC SAFETY PROTOCOLS${cityContext ? ` FOR ${analysisCity.toUpperCase()}` : ''}**
+- **Area-Specific Risks**: Detailed analysis of local emergency scenarios
+- **Community Resources**: Local emergency services and facilities
+- **Evacuation Routes**: Multiple options with detailed instructions
+- **Safe Locations**: Designated safe zones and shelters
+- **Local Emergency Procedures**: Specific protocols for area
+
+📞 **EMERGENCY COMMUNICATION & RESOURCES**
+- **Contact Hierarchy**: Who to contact in different scenarios
+- **Information Sharing**: What details to provide emergency services
+- **Backup Communication**: Alternative methods if primary fails
+- **Document Preparation**: What information to have ready
+- **Support Networks**: How to establish and use safety networks
+
+🔧 **SAFETY EQUIPMENT & TECHNOLOGY**
+- **Essential Safety Gear**: Detailed list with usage instructions
+- **Safety Applications**: Specific apps and how to use them effectively
+- **Emergency Kits**: Comprehensive checklist and maintenance
+- **Communication Devices**: Backup options and power solutions
+
+**RESPONSE REQUIREMENTS:**
+- Provide 6-10 detailed points for each major section
+- Include step-by-step procedures for common emergencies
+- Offer both prevention and response strategies
+- Consider different scenarios and environments
+- Provide practical, immediately actionable advice
+
+Remember to provide comprehensive, detailed emergency guidance that can be immediately implemented.
+`;
+
+      default:
+        return `
+USER_QUERY: "${message}"
+${safetyContext}
+
+You are a comprehensive Safety Analysis Assistant. The user has a safety-related question${cityContext}.
+
+**CRITICAL: Provide EXTREMELY DETAILED, COMPREHENSIVE responses**
+
+Provide a thorough, professional response focusing on safety aspects with this structure:
+
+🔍 **QUERY ANALYSIS**
+- Detailed understanding of the user's safety concern
+- Identification of both stated and potential unstated concerns
+- Context analysis based on available location data
+
+📊 **COMPREHENSIVE SAFETY ASSESSMENT**
+- Detailed analysis of relevant safety factors
+- Data-driven insights from available incident information
+- Risk assessment based on current context
+- Consideration of environmental and temporal factors
+
+🛡️ **DETAILED SAFETY RECOMMENDATIONS**
+- 5-7 specific, actionable safety measures
+- Both immediate and preventative strategies
+- Alternative approaches for different scenarios
+- Personalized considerations based on available context
+
+💡 **PROACTIVE SAFETY PLANNING**
+- Long-term safety strategies
+- Environmental adaptation techniques
+- Community and resource engagement
+- Continuous safety improvement methods
+
+📋 **IMPLEMENTATION GUIDANCE**
+- Step-by-step action plans
+- Priority-based task organization
+- Progress monitoring suggestions
+- Success measurement criteria
+
+**RESPONSE REQUIREMENTS:**
+- Minimum 4-6 detailed points for each section
+- Use specific examples and scenarios
+- Provide practical, actionable advice
+- Include both general and location-specific guidance
+- Engage user with thoughtful follow-up questions
+
+If location data is available, incorporate it naturally throughout the response. If not, provide comprehensive general safety advice while suggesting how location-specific data could enhance the guidance.
+`;
+    }
+  } else {
+    // General conversation - encourage detailed, engaging responses
+    return `
+USER_QUERY: "${message}"
+
+You are a friendly, helpful, and highly engaging assistant. The user is having a general conversation.
+
+**CRITICAL: Provide WARM, DETAILED, and THOUGHTFUL responses**
+
+💬 **CONVERSATION APPROACH:**
+- Be genuinely curious and interested in the user
+- Provide comprehensive, thoughtful answers
+- Ask engaging follow-up questions
+- Share relevant insights and perspectives
+- Maintain a warm, conversational tone
+
+🌟 **RESPONSE QUALITY:**
+- Aim for detailed, substantial responses (minimum 3-5 key points)
+- Provide examples and personal insights when relevant
+- Show empathy and understanding
+- Offer practical advice or suggestions
+- Encourage continued conversation
+
+🎯 **ENGAGEMENT STRATEGY:**
+- Reference previous conversation context when available
+- Ask open-ended questions to learn more about the user
+- Share relevant personal experiences or analogies
+- Provide multiple perspectives on topics
+- Suggest related topics of interest
+
+**AVOID:**
+- Short, generic responses
+- Yes/no answers without elaboration
+- Abrupt topic changes
+- Overly technical language without explanation
+
+If the user seems to be asking about safety but wasn't clear, gently explore this while providing comprehensive general response. Always aim to create meaningful, engaging dialogue that makes the user feel heard and valued.
+`;
+  }
+};
+
 // Enhanced main chat controller
 export const chatWithGemini = async (req, res) => {
   try {
@@ -927,234 +1312,41 @@ export const chatWithGemini = async (req, res) => {
       }
     }
 
-    // Enhanced system prompt that adapts based on query type and location
-    let systemPrompt = "";
-    
-    if (isSafetyRequest) {
-      const cityContext = analysisCity ? ` focusing on ${analysisCity}` : "";
-      
-      switch (safetyCategory) {
-        case 'ROUTE_COMPARISON':
-          systemPrompt = `
-USER_QUERY: "${message}"
-${safetyContext}
-
-You are a Route Safety Analysis Assistant. The user wants to compare MULTIPLE ROUTES or DESTINATIONS for safety.
-
-Provide a comprehensive route comparison with this structure:
-
-🏆 **Overall Safest Recommendation**
-- Which destination/route is safest overall
-- Key safety metrics comparison
-
-📊 **Route Safety Comparison**
-For each destination/route analyzed:
-- Safety Score (0-100)
-- Risk Level (LOW/MODERATE/HIGH/VERY_HIGH)
-- Number of incidents along route
-- High-risk areas to avoid
-- Travel time and distance
-
-🛡️ **Safety Breakdown by Route**
-- Detailed analysis of each route's safety
-- Specific high-risk areas identified
-- Incident types encountered
-
-🚨 **Safety Recommendations**
-- Safest route recommendation
-- Alternative options
-- Time-of-day considerations
-- Emergency preparedness tips
-
-📍 **Destination Safety Overview**
-- Safety at each destination
-- Area-specific risks
-- Local safety considerations
-
-Provide clear, actionable advice to help the user choose the safest option. Use the route analysis data to support your recommendations.
-`;
-          break;
-
-        case 'SAFE_ROUTE':
-          systemPrompt = `
-USER_QUERY: "${message}"
-${safetyContext}
-
-You are a Safety Analysis Assistant. The user is asking for SAFE ROUTE guidance${cityContext}.
-
-Provide professional route safety analysis:
-
-🗺️ **Route Safety Assessment${cityContext ? ` in ${analysisCity}` : ''}**
-
-📍 **Current Location Safety**: [Brief assessment]
-🎯 **Destination Safety**: [Brief assessment if available]
-
-🚶 **Recommended Route**:
-- Safest path recommendations
-- Areas to avoid along the route
-- Alternative options if available
-
-⚠️ **Route-Specific Risks${cityContext ? ` in ${analysisCity}` : ''}**:
-- Any known incident hotspots
-- Time-dependent risks
-- Environmental factors
-
-🛡️ **Travel Safety Tips**:
-- Transportation safety
-- Time-of-day considerations
-- Emergency planning for the route
-
-Provide clear, practical route guidance with safety as the priority.
-`;
-          break;
-
-        case 'CURRENT_SAFETY':
-          systemPrompt = `
-USER_QUERY: "${message}"
-${safetyContext}
-
-You are a Safety Analysis Assistant. The user is asking about their CURRENT LOCATION SAFETY${cityContext}.
-
-Provide a professional safety assessment with this structure:
-
-🛡️ **Safety Assessment**: [SAFE/MODERATELY_SAFE/CAUTION_ADVISED/HIGH_RISK]
-
-📍 **Location Analysis${cityContext ? ` - ${analysisCity}` : ''}**: 
-- Brief analysis of recent incidents in the area
-- Overall safety level based on incident data
-- ${analysisCity ? `Specific insights for ${analysisCity}` : 'General area assessment'}
-
-📊 **Incident Summary**:
-- Number of recent incidents in your area
-- Types of incidents reported
-- Risk level assessment
-
-🚨 **Immediate Recommendations**:
-- 2-3 specific safety measures for current location
-- Any areas to avoid
-- Emergency contact preparedness
-
-💡 **Proactive Safety Tips**:
-- General safety practices for this area
-- Time-specific precautions if applicable
-
-Base your response strictly on the provided incident data${cityContext}. If no location data is available, politely ask the user to share their location for accurate safety analysis.
-`;
-          break;
-
-        case 'EMERGENCY_TIPS':
-          systemPrompt = `
-USER_QUERY: "${message}"
-${safetyContext}
-
-You are a Safety Analysis Assistant. The user is asking for EMERGENCY TIPS and SAFETY GUIDANCE${cityContext}.
-
-Provide comprehensive emergency preparedness information:
-
-🚨 **Emergency Preparedness${cityContext ? ` for ${analysisCity}` : ''}**
-
-📱 **Immediate Actions**:
-- Emergency contact numbers to save
-- Quick escape planning
-- Communication strategies
-
-🛡️ **Personal Safety Measures**:
-- Situational awareness techniques
-- Personal security practices
-- Risk avoidance strategies
-
-🏠 **Location-Specific Tips${cityContext ? ` for ${analysisCity}` : ''}**:
-- Safety measures based on current area assessment
-- Area-specific precautions
-- ${analysisCity ? `Local safety considerations in ${analysisCity}` : 'General urban safety practices'}
-
-📞 **Emergency Contacts & Resources**:
-- Local emergency services
-- Trusted contacts to inform
-- Safety apps and tools
-
-Remember to provide practical, actionable advice that can be immediately implemented.
-`;
-          break;
-
-        default:
-          systemPrompt = `
-USER_QUERY: "${message}"
-${safetyContext}
-
-You are a Safety Analysis Assistant. The user has a safety-related question${cityContext}.
-
-Provide a helpful, professional response focusing on safety aspects while being conversational and supportive.
-
-If location data is available, incorporate it naturally. If not, provide general safety advice and suggest sharing location for more specific guidance.
-`;
-      }
-    } else {
-      // General conversation - no safety analysis
-      systemPrompt = `
-USER_QUERY: "${message}"
-
-You are a friendly, helpful assistant. The user is having a general conversation.
-
-Respond in a warm, conversational tone without any safety analysis structure. Keep your response natural and engaging.
-
-If the user seems to be asking about safety but wasn't clear, you can gently ask if they'd like safety-specific information.
-`;
-    }
+    // Use enhanced system prompt
+    const systemPrompt = getEnhancedSystemPrompt(
+      message, 
+      safetyContext, 
+      isSafetyRequest, 
+      safetyCategory, 
+      analysisCity
+    );
 
     console.log('🤖 Using system prompt for:', safetyCategory);
     console.log('City filter applied:', analysisCity || 'none');
     console.log('Route analysis available:', !!routeAnalysis);
 
+    // Enhanced model configuration for better responses
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-2.5-flash',
       generationConfig: {
-        temperature: isSafetyRequest ? 0.2 : 0.7,
-        maxOutputTokens: 1200,
+        temperature: isSafetyRequest ? 0.3 : 0.8, // Increased for more varied responses
+        maxOutputTokens: 2000, // Increased token limit
+        topP: 0.9,
+        topK: 40,
       }
     });
 
     const chat = model.startChat({ history });
-    const result = await chat.sendMessage(systemPrompt);
+    
+    // Use enhanced response generation with retry logic
+    const responseText = await generateAIResponse(chat, systemPrompt);
 
-    // IMPROVED RESPONSE HANDLING WITH VALIDATION
-    console.log('🔍 Full Gemini result structure:', JSON.stringify({
-      hasResponse: !!result.response,
-      responseType: typeof result.response,
-      responseKeys: result.response ? Object.keys(result.response) : 'no response',
-      hasText: result.response ? typeof result.response.text : 'no response'
-    }, null, 2));
-
-    let responseText = '';
-    try {
-      if (result && result.response && typeof result.response.text === 'function') {
-        responseText = result.response.text() || '';
-      } else {
-        console.warn('⚠️ Unexpected response structure:', result);
-        responseText = "I apologize, but I'm having trouble processing the response.";
-      }
-      
-      // Additional validation
-      if (typeof responseText !== 'string') {
-        console.warn('⚠️ Response text is not a string:', typeof responseText);
-        responseText = String(responseText || '');
-      }
-      
-      if (!responseText.trim()) {
-        console.warn('⚠️ Empty response text after processing');
-        responseText = "I apologize, but I couldn't generate a response. Please try again.";
-      }
-      
-      console.log('🤖 Response from Gemini:', responseText.substring(0, 100) + '...');
-    } catch (responseError) {
-      console.error('❌ Error processing Gemini response:', responseError);
-      responseText = "I encountered an issue processing your request. Please try again.";
-    }
-
-    // Final validation before saving to database
-    if (!responseText || responseText.trim() === '') {
-      responseText = "I apologize, but I couldn't generate a proper response. Please try your question again.";
-    }
+    console.log('🤖 Final response from Gemini:', {
+      length: responseText.length,
+      preview: responseText.substring(0, 100) + '...',
+      isSafetyRequest,
+      safetyCategory
+    });
 
     const modelMessage = await ChatMessage.create({
       user: userId,
@@ -1169,7 +1361,8 @@ If the user seems to be asking about safety but wasn't clear, you can gently ask
         incidentsUsed: incidentsData ? incidentsData.length : 0,
         multipleDestinationsCount: multipleDestinations ? multipleDestinations.length : 0,
         responseTimestamp: new Date().toISOString(),
-        responseLength: responseText.length
+        responseLength: responseText.length,
+        generationAttempts: 1 // Could track actual attempts if needed
       }
     });
 
@@ -1183,7 +1376,11 @@ If the user seems to be asking about safety but wasn't clear, you can gently ask
       analysisCity,
       incidentsDataAvailable: !!incidentsData,
       multipleDestinations: multipleDestinations ? multipleDestinations.length : 0,
-      cacheUsed: incidentsCache.timestamp ? Date.now() - incidentsCache.timestamp < CONFIG.SAFETY.CACHE_DURATION_MS : false
+      cacheUsed: incidentsCache.timestamp ? Date.now() - incidentsCache.timestamp < CONFIG.SAFETY.CACHE_DURATION_MS : false,
+      responseMetrics: {
+        length: responseText.length,
+        hasDetailedContent: responseText.length > CONFIG.RESPONSE.MIN_LENGTH
+      }
     });
   } catch (error) {
     return ChatUtils.handleError(res, error, 'Gemini Chat');
@@ -1251,7 +1448,12 @@ export const getSystemStatus = async (req, res) => {
         supportedCities: CONFIG.CITIES.SUPPORTED,
         analysisRadius: CONFIG.SAFETY.ANALYSIS_RADIUS_KM,
         cacheDuration: CONFIG.SAFETY.CACHE_DURATION_MS,
-        googleMaps: !!CONFIG.GOOGLE.MAPS_API_KEY
+        googleMaps: !!CONFIG.GOOGLE.MAPS_API_KEY,
+        responseSettings: {
+          minLength: CONFIG.RESPONSE.MIN_LENGTH,
+          targetLength: CONFIG.RESPONSE.TARGET_LENGTH,
+          maxRetries: CONFIG.RESPONSE.MAX_RETRIES
+        }
       }
     };
 
@@ -1260,8 +1462,6 @@ export const getSystemStatus = async (req, res) => {
     ChatUtils.handleError(res, error, 'Get System Status');
   }
 };
-
-// Keep existing functions for backward compatibility
 export const listModels = async (req, res) => {
   try {
     const models = await genAI.listModels();

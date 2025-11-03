@@ -35,16 +35,21 @@ export const addContacts = async (req, res) => {
   }
 };
 
-// ✅ ADD THIS - Single contact creation (for your frontend)
+// ✅ FIXED - Single contact creation
 export const addSingleContact = async (req, res) => {
   const { userId } = req.params;
-  const contactData = req.body;
+  let contactData = req.body;
 
   if (!userId) {
     return res.status(400).json({ message: 'User ID is required' });
   }
 
   try {
+    // Handle both array and object input
+    if (Array.isArray(contactData)) {
+      contactData = contactData[0]; // Take first element if array
+    }
+
     if (!contactData.name || !contactData.phoneNumber) {
       return res.status(400).json({ message: 'Name and phone number are required' });
     }
@@ -73,11 +78,14 @@ export const getContactsByUser = async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const contacts = await Contact.find({ user: userId });
-    res.status(200).json({ contacts });
+    const contacts = await Contact.find({ user: userId }).sort({ createdAt: -1 });
+    res.status(200).json({ 
+      message: 'Contacts fetched successfully',
+      contacts 
+    });
   } catch (error) {
     console.error('Error fetching contacts:', error);
-    res.status(500).json({ message: 'Failed to fetch contacts' });
+    res.status(500).json({ message: 'Failed to fetch contacts', error: error.message });
   }
 };
 
@@ -86,6 +94,10 @@ export const updateContact = async (req, res) => {
   try {
     const { userId, contactId } = req.params;
     const updates = req.body;
+
+    if (!contactId || !userId) {
+      return res.status(400).json({ message: 'Contact ID and User ID are required' });
+    }
 
     // Find contact by ID and user ID to ensure ownership
     const contact = await Contact.findOne({ _id: contactId, user: userId });
@@ -96,7 +108,7 @@ export const updateContact = async (req, res) => {
 
     // Update contact fields
     Object.keys(updates).forEach(key => {
-      if (updates[key] !== undefined) {
+      if (updates[key] !== undefined && updates[key] !== null) {
         contact[key] = updates[key];
       }
     });
@@ -109,7 +121,7 @@ export const updateContact = async (req, res) => {
     });
   } catch (err) {
     console.error('Update contact error:', err);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
 
@@ -118,15 +130,22 @@ export const deleteContact = async (req, res) => {
   try {
     const { userId, contactId } = req.params;
 
+    if (!contactId || !userId) {
+      return res.status(400).json({ message: 'Contact ID and User ID are required' });
+    }
+
     const contact = await Contact.findOneAndDelete({ _id: contactId, user: userId });
 
     if (!contact) {
       return res.status(404).json({ message: 'Contact not found' });
     }
 
-    res.json({ message: 'Contact deleted successfully' });
+    res.json({ 
+      message: 'Contact deleted successfully',
+      deletedContact: contact 
+    });
   } catch (err) {
     console.error('Delete contact error:', err);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 };

@@ -9,9 +9,9 @@ import {
 
 const router = express.Router();
 
-// ✅ CORRECTED ROUTES - Match your frontend expectations
-router.post('/', addContacts); // POST /api/contacts (bulk)
-router.post('/:userId', addSingleContact); // POST /api/contacts/:userId (single)
+// ✅ CLEAR ROUTE SEPARATION
+router.post('/bulk', addContacts); // POST /api/contacts/bulk (multiple contacts)
+router.post('/:userId', addSingleContact); // POST /api/contacts/:userId (single contact)
 router.get('/:userId', getContactsByUser); // GET /api/contacts/:userId
 router.put('/:userId/:contactId', updateContact); // PUT /api/contacts/:userId/:contactId  
 router.delete('/:userId/:contactId', deleteContact); // DELETE /api/contacts/:userId/:contactId
